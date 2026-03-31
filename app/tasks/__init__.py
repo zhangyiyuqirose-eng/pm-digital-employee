@@ -1,0 +1,11 @@
+"""
+PM Digital Employee - Tasks Module
+项目经理数字员工系统 - 异步任务模块
+"""
+
+from app.tasks.celery_app import celery_app, get_celery_app
+
+__all__ = [
+    "celery_app",
+    "get_celery_app",
+]

@@ -1,0 +1,160 @@
+# PM Digital Employee - Docker Compose Configuration
+# 项目经理数字员工系统 - 一键启动完整服务栈
+
+services:
+  # PostgreSQL数据库服务（含pgvector扩展）
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: pm_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pm_user
+      POSTGRES_PASSWORD: pm_password_123
+      POSTGRES_DB: pm_digital_employee
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_pgvector.sql:/docker-entrypoint-initdb.d/01-init_pgvector.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pm_user -d pm_digital_employee"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - pm_network
+
+  # Redis缓存服务
+  redis:
+    image: redis:7.4-alpine
+    container_name: pm_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass redis_123
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pm_network
+
+  # RabbitMQ消息队列服务
+  rabbitmq:
+    image: rabbitmq:4.0-management-alpine
+    container_name: pm_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: pm_rabbitmq
+      RABBITMQ_DEFAULT_PASS: rabbitmq_123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - pm_network
+
+  # FastAPI应用服务
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: pm_app
+    restart: unless-stopped
+    environment:
+      APP_NAME: PM Digital Employee
+      APP_ENV: development
+      APP_DEBUG: "true"
+      APP_SECRET_KEY: dev_secret_key_change_in_production_32chars
+      DATABASE_URL: postgresql+asyncpg://pm_user:pm_password_123@postgres:5432/pm_digital_employee
+      REDIS_URL: redis://:redis_123@redis:6379/0
+      CELERY_BROKER_URL: pyamqp://pm_rabbitmq:rabbitmq_123@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://:redis_123@redis:6379/1
+      LARK_APP_ID: cli_dev_mock
+      LARK_APP_SECRET: dev_mock_secret
+      LLM_PROVIDER: mock
+      LOG_LEVEL: INFO
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app:ro
+      - ./prompts:/app/prompts:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - pm_network
+
+  # Celery Worker服务
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: pm_celery_worker
+    restart: unless-stopped
+    command: >
+      celery -A app.tasks.celery_app worker
+      --loglevel=INFO
+      --concurrency=2
+    environment:
+      DATABASE_URL: postgresql+asyncpg://pm_user:pm_password_123@postgres:5432/pm_digital_employee
+      REDIS_URL: redis://:redis_123@redis:6379/0
+      CELERY_BROKER_URL: pyamqp://pm_rabbitmq:rabbitmq_123@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://:redis_123@redis:6379/1
+      LLM_PROVIDER: mock
+      LOG_LEVEL: INFO
+    volumes:
+      - ./prompts:/app/prompts:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - pm_network
+
+# 数据卷定义
+volumes:
+  postgres_data:
+    name: pm_postgres_data
+  redis_data:
+    name: pm_redis_data
+  rabbitmq_data:
+    name: pm_rabbitmq_data
+
+# 网络定义
+networks:
+  pm_network:
+    name: pm_network
+    driver: bridge

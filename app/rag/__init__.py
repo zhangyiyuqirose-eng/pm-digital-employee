@@ -1,0 +1,108 @@
+"""
+PM Digital Employee - RAG Module
+项目经理数字员工系统 - RAG检索引擎模块
+"""
+
+from app.rag.schemas import (
+    ChunkStrategy,
+    DocumentChunk,
+    DocumentScopeType,
+    DocumentStatus,
+    EmbeddingBatch,
+    EmbeddingBatchResponse,
+    IndexRequest,
+    IndexResponse,
+    KnowledgeDocumentInput,
+    RAGRequest,
+    RAGResponse,
+    RerankRequest,
+    RerankResult,
+    RetrievedDocument,
+    RetrievalStrategy,
+    RetrievalTraceRecord,
+    SearchResult,
+)
+from app.rag.chunker import (
+    BaseChunker,
+    FixedSizeChunker,
+    ParagraphChunker,
+    SemanticChunker,
+    RecursiveChunker,
+    ChunkerFactory,
+    chunk_document,
+)
+from app.rag.indexer import (
+    VectorIndexer,
+    IncrementalIndexer,
+    get_vector_indexer,
+    init_vector_indexer,
+)
+from app.rag.retriever import (
+    VectorRetriever,
+    PermissionAwareRetriever,
+    get_vector_retriever,
+    init_vector_retriever,
+)
+from app.rag.reranker import (
+    BaseReranker,
+    CrossEncoderReranker,
+    DiversityReranker,
+    HybridReranker,
+    RerankerFactory,
+    get_reranker,
+    rerank_documents,
+)
+from app.rag.qa_service import (
+    RAGQAService,
+    PolicyQAService,
+    get_rag_qa_service,
+    get_policy_qa_service,
+    init_rag_qa_service,
+)
+
+__all__ = [
+    "ChunkStrategy",
+    "DocumentChunk",
+    "DocumentScopeType",
+    "DocumentStatus",
+    "EmbeddingBatch",
+    "EmbeddingBatchResponse",
+    "IndexRequest",
+    "IndexResponse",
+    "KnowledgeDocumentInput",
+    "RAGRequest",
+    "RAGResponse",
+    "RerankRequest",
+    "RerankResult",
+    "RetrievedDocument",
+    "RetrievalStrategy",
+    "RetrievalTraceRecord",
+    "SearchResult",
+    "BaseChunker",
+    "FixedSizeChunker",
+    "ParagraphChunker",
+    "SemanticChunker",
+    "RecursiveChunker",
+    "ChunkerFactory",
+    "chunk_document",
+    "VectorIndexer",
+    "IncrementalIndexer",
+    "get_vector_indexer",
+    "init_vector_indexer",
+    "VectorRetriever",
+    "PermissionAwareRetriever",
+    "get_vector_retriever",
+    "init_vector_retriever",
+    "BaseReranker",
+    "CrossEncoderReranker",
+    "DiversityReranker",
+    "HybridReranker",
+    "RerankerFactory",
+    "get_reranker",
+    "rerank_documents",
+    "RAGQAService",
+    "PolicyQAService",
+    "get_rag_qa_service",
+    "get_policy_qa_service",
+    "init_rag_qa_service",
+]
