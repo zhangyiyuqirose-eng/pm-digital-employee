@@ -1,8 +1,9 @@
 """
 PM Digital Employee - Lark API Client
-项目经理数字员工系统 - 飞书API统一客户端封装
+PM Digital Employee System - Lark Open Platform API client
 
-实现飞书开放平台API调用、认证、重试、错误处理。
+Implements Lark Open Platform API calls, authentication (tenant_access_token),
+retry logic, and error handling.
 """
 
 import asyncio
@@ -18,9 +19,9 @@ logger = get_logger(__name__)
 
 
 class LarkError(Exception):
-    """飞书API异常."""
+    """Lark API error."""
 
-    def __init__(self, message: str, code: Optional[str] = None):
+    def __init__(self, message: str, code: Optional[int] = None):
         super().__init__(message)
         self.code = code
         self.message = message
@@ -28,10 +29,10 @@ class LarkError(Exception):
 
 class LarkClient:
     """
-    飞书API统一客户端.
+    Lark Open Platform API client.
 
-    实现飞书开放平台API调用、认证、重试、错误处理。
-    支持tenant_access_token自动获取和缓存。
+    Implements Lark API calls with automatic tenant_access_token management.
+    Token TTL is 7200 seconds; refresh 300 seconds before expiry.
     """
 
     def __init__(
@@ -41,26 +42,26 @@ class LarkClient:
         api_domain: Optional[str] = None,
     ) -> None:
         """
-        初始化飞书客户端.
+        Initialize Lark client.
 
         Args:
-            app_id: 飞书应用ID
-            app_secret: 飞书应用密钥
-            api_domain: API域名
+            app_id: Lark app ID
+            app_secret: Lark app secret
+            api_domain: Lark API domain
         """
         self.app_id = app_id or settings.lark_app_id
         self.app_secret = app_secret or settings.lark_app_secret
         self.api_domain = api_domain or settings.lark_api_domain
 
-        # Token缓存
-        self._tenant_access_token: Optional[str] = None
+        # Token cache
+        self._tenant_token: Optional[str] = None
         self._token_expire_time: float = 0
 
-        # HTTP客户端
+        # HTTP client
         self._client: Optional[httpx.AsyncClient] = None
 
     async def _get_client(self) -> httpx.AsyncClient:
-        """获取HTTP客户端."""
+        """Get HTTP client."""
         if self._client is None:
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(30.0),
@@ -69,57 +70,55 @@ class LarkClient:
         return self._client
 
     async def close(self) -> None:
-        """关闭客户端."""
+        """Close client."""
         if self._client:
             await self._client.aclose()
             self._client = None
 
-    async def get_tenant_access_token(self) -> str:
+    async def get_tenant_token(self) -> str:
         """
-        获取tenant_access_token.
+        Get tenant_access_token.
 
-        自动缓存和刷新Token。
+        Auto-caches and refreshes token. TTL is 7200s, refresh 300s early.
 
         Returns:
             str: tenant_access_token
         """
-        # 检查缓存是否有效（提前5分钟刷新）
-        if self._tenant_access_token and time.time() < self._token_expire_time - 300:
-            return self._tenant_access_token
+        # Check cache (refresh 5 min before expiry)
+        if self._tenant_token and time.time() < self._token_expire_time - 300:
+            return self._tenant_token
 
         logger.info("Fetching new tenant_access_token")
 
         client = await self._get_client()
-        url = f"{self.api_domain}/open-apis/auth/v3/tenant_access_token/internal/"
+        url = f"{self.api_domain}/open-apis/auth/v3/tenant_access_token/internal"
 
-        response = await client.post(
-            url,
-            json={
-                "app_id": self.app_id,
-                "app_secret": self.app_secret,
-            },
-        )
+        payload = {
+            "app_id": self.app_id,
+            "app_secret": self.app_secret,
+        }
 
+        response = await client.post(url, json=payload)
         data = response.json()
 
         if data.get("code") != 0:
             logger.error(
                 "Failed to get tenant_access_token",
                 code=data.get("code"),
-                message=data.get("msg"),
+                msg=data.get("msg"),
             )
             raise LarkError(
-                message=f"获取飞书Token失败: {data.get('msg')}",
+                message=f"Failed to get Lark tenant token: {data.get('msg')}",
                 code=data.get("code"),
             )
 
-        self._tenant_access_token = data.get("tenant_access_token")
+        self._tenant_token = data.get("tenant_access_token")
         expire_seconds = data.get("expire", 7200)
         self._token_expire_time = time.time() + expire_seconds
 
         logger.info("tenant_access_token refreshed", expire_in=expire_seconds)
 
-        return self._tenant_access_token
+        return self._tenant_token
 
     async def request(
         self,
@@ -129,177 +128,277 @@ class LarkClient:
         params: Optional[Dict] = None,
     ) -> Dict:
         """
-        发送API请求.
+        Send API request.
 
         Args:
-            method: HTTP方法
-            endpoint: API端点
-            data: 请求体数据
-            params: URL参数
+            method: HTTP method
+            endpoint: API endpoint
+            data: Request body
+            params: URL query params
 
         Returns:
-            Dict: 响应数据
+            Dict: Response data
         """
         client = await self._get_client()
-        token = await self.get_tenant_access_token()
+        token = await self.get_tenant_token()
 
         url = f"{self.api_domain}{endpoint}"
+
         headers = {
-            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
         }
 
         try:
             if method.upper() == "GET":
                 response = await client.get(url, headers=headers, params=params)
             elif method.upper() == "POST":
-                response = await client.post(url, headers=headers, json=data)
+                response = await client.post(url, headers=headers, json=data, params=params)
             elif method.upper() == "PUT":
-                response = await client.put(url, headers=headers, json=data)
+                response = await client.put(url, headers=headers, json=data, params=params)
             elif method.upper() == "DELETE":
-                response = await client.delete(url, headers=headers)
+                response = await client.delete(url, headers=headers, params=params)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
 
             result = response.json()
+
+            # Check Lark API error code
+            code = result.get("code", -1)
+            if code != 0:
+                logger.warning(
+                    "Lark API returned error",
+                    code=code,
+                    msg=result.get("msg"),
+                    endpoint=endpoint,
+                )
+
             return result
 
         except httpx.TimeoutException:
-            raise LarkError(message="飞书API请求超时")
+            raise LarkError(message="Lark API request timeout")
         except httpx.RequestError as exc:
-            raise LarkError(message=f"飞书API请求失败: {str(exc)}")
+            raise LarkError(message=f"Lark API request failed: {str(exc)}")
 
-    # ==================== 消息相关API ====================
+    # ==================== Message APIs ====================
+
+    async def send_message(
+        self,
+        receive_id: str,
+        msg_type: str,
+        content: Dict[str, Any],
+        receive_id_type: str = "open_id",
+    ) -> Dict:
+        """
+        Send message to user or chat.
+
+        Args:
+            receive_id: User open_id or chat_id
+            msg_type: Message type (text, interactive, etc.)
+            content: Message content dict
+            receive_id_type: ID type (open_id, chat_id, union_id, email)
+
+        Returns:
+            Dict: Response data
+        """
+        endpoint = f"/open-apis/im/v1/messages?receive_id_type={receive_id_type}"
+
+        payload = {
+            "receive_id": receive_id,
+            "msg_type": msg_type,
+            "content": content if isinstance(content, str) else __import__("json").dumps(content),
+        }
+
+        return await self.request("POST", endpoint, data=payload)
 
     async def send_text_message(
         self,
         receive_id: str,
-        receive_id_type: str,
         text: str,
+        receive_id_type: str = "open_id",
     ) -> Dict:
         """
-        发送文本消息.
+        Send text message.
 
         Args:
-            receive_id: 接收者ID
-            receive_id_type: 接收者类型（open_id/user_id/chat_id）
-            text: 文本内容
+            receive_id: User open_id or chat_id
+            text: Text content
+            receive_id_type: ID type
 
         Returns:
-            Dict: 响应数据
+            Dict: Response data
         """
-        import json
-        return await self.request(
-            "POST",
-            "/open-apis/im/v1/messages",
-            params={"receive_id_type": receive_id_type},
-            data={
-                "receive_id": receive_id,
-                "msg_type": "text",
-                "content": json.dumps({"text": text}),
-            },
+        content = {"text": text}
+        return await self.send_message(
+            receive_id=receive_id,
+            msg_type="text",
+            content=content,
+            receive_id_type=receive_id_type,
         )
 
-    async def send_card_message(
+    async def send_interactive_card(
         self,
         receive_id: str,
-        receive_id_type: str,
-        card: Dict,
+        card: Dict[str, Any],
+        receive_id_type: str = "open_id",
     ) -> Dict:
         """
-        发送卡片消息.
+        Send interactive card message.
 
         Args:
-            receive_id: 接收者ID
-            receive_id_type: 接收者类型
-            card: 卡片内容
+            receive_id: User open_id or chat_id
+            card: Card JSON (LarkCardBuilder.build() output)
+            receive_id_type: ID type
 
         Returns:
-            Dict: 响应数据
+            Dict: Response data
         """
-        import json
-
-        return await self.request(
-            "POST",
-            "/open-apis/im/v1/messages",
-            params={"receive_id_type": receive_id_type},
-            data={
-                "receive_id": receive_id,
-                "msg_type": "interactive",
-                "content": json.dumps(card),
-            },
+        content = {
+            "type": "template",
+            "data": card,
+        }
+        return await self.send_message(
+            receive_id=receive_id,
+            msg_type="interactive",
+            content=content,
+            receive_id_type=receive_id_type,
         )
 
-    async def reply_message(
+    async def send_to_chat(
         self,
-        message_id: str,
+        chat_id: str,
+        msg_type: str,
+        content: Dict[str, Any],
+    ) -> Dict:
+        """
+        Send message to group chat.
+
+        Args:
+            chat_id: Group chat ID
+            msg_type: Message type
+            content: Message content
+
+        Returns:
+            Dict: Response data
+        """
+        return await self.send_message(
+            receive_id=chat_id,
+            msg_type=msg_type,
+            content=content,
+            receive_id_type="chat_id",
+        )
+
+    async def send_text_to_chat(
+        self,
+        chat_id: str,
         text: str,
     ) -> Dict:
         """
-        回复消息.
+        Send text message to group chat.
 
         Args:
-            message_id: 原消息ID
-            text: 消息内容
+            chat_id: Group chat ID
+            text: Text content
 
         Returns:
-            Dict: 响应数据
+            Dict: Response data
         """
-        import json
-        return await self.request(
-            "POST",
-            f"/open-apis/im/v1/messages/{message_id}/reply",
-            data={
-                "msg_type": "text",
-                "content": json.dumps({"text": text}),
-            },
+        content = {"text": text}
+        return await self.send_to_chat(
+            chat_id=chat_id,
+            msg_type="text",
+            content=content,
         )
 
-    # ==================== 用户相关API ====================
+    # ==================== User APIs ====================
 
-    async def get_user_info(self, user_id: str, user_id_type: str = "open_id") -> Dict:
+    async def get_user_info(self, user_id: str) -> Dict:
         """
-        获取用户信息.
+        Get user info by user_id.
 
         Args:
-            user_id: 用户ID
-            user_id_type: 用户ID类型
+            user_id: User ID
 
         Returns:
-            Dict: 用户信息
+            Dict: User info
         """
-        result = await self.request(
-            "GET",
-            f"/open-apis/contact/v3/users/{user_id}",
-            params={"user_id_type": user_id_type},
-        )
-        return result.get("data", {}).get("user", {})
+        endpoint = f"/open-apis/contact/v3/users/{user_id}"
+        return await self.request("GET", endpoint)
 
-    # ==================== 群相关API ====================
+    async def get_user_list(
+        self,
+        department_id: str = "0",
+        page_size: int = 50,
+    ) -> List[Dict]:
+        """
+        Get user list for department.
+
+        Args:
+            department_id: Department ID (0 = root)
+            page_size: Page size
+
+        Returns:
+            List[Dict]: User list
+        """
+        endpoint = "/open-apis/contact/v3/users/find_by_department"
+        params = {
+            "department_id": department_id,
+            "page_size": page_size,
+        }
+        result = await self.request("GET", endpoint, params=params)
+        return result.get("data", {}).get("items", [])
+
+    # ==================== Chat APIs ====================
 
     async def get_chat_info(self, chat_id: str) -> Dict:
         """
-        获取群信息.
+        Get chat info.
 
         Args:
-            chat_id: 群ID
+            chat_id: Chat ID
 
         Returns:
-            Dict: 群信息
+            Dict: Chat info
         """
-        result = await self.request(
-            "GET",
-            f"/open-apis/im/v1/chats/{chat_id}",
+        endpoint = f"/open-apis/im/v1/chats/{chat_id}"
+        return await self.request("GET", endpoint)
+
+    async def update_card(
+        self,
+        message_id: str,
+        card: Dict[str, Any],
+    ) -> Dict:
+        """
+        Update an existing interactive card in a message.
+
+        Args:
+            message_id: Message ID containing the card
+            card: Updated card JSON
+
+        Returns:
+            Dict: Response data
+        """
+        endpoint = f"/open-apis/im/v1/messages/{message_id}"
+        content = {
+            "type": "template",
+            "data": card,
+        }
+        return await self.request(
+            "PUT",
+            endpoint,
+            data={
+                "msg_type": "interactive",
+                "content": __import__("json").dumps(content),
+            },
         )
-        return result.get("data", {})
 
 
-# 全局客户端实例
+# Global client instance
 _lark_client: Optional[LarkClient] = None
 
 
 def get_lark_client() -> LarkClient:
-    """获取飞书客户端实例."""
+    """Get Lark client instance."""
     global _lark_client
     if _lark_client is None:
         _lark_client = LarkClient()

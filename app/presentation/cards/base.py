@@ -1,25 +1,109 @@
 """
 PM Digital Employee - Card Base
-项目经理数字员工系统 - 飞书卡片基类
+PM Digital Employee System - Lark card base
 
-定义飞书卡片的基础结构和构建方法。
+Defines the base structure and build methods for Lark interactive cards.
 """
 
+import html
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
 
-from app.integrations.lark.schemas import LarkCardBuilder
+from app.integrations.lark.schemas import LarkCardBuilder  # 注意：此处仍使用LarkCardBuilder作为底层实现
+
+
+@dataclass
+class CardElement:
+    """卡片元素基类"""
+    tag: str
+
+
+class TextElement(CardElement):
+    """文本元素"""
+    def __init__(self, content: str, font_size: Optional[str] = None, bold: bool = False):
+        super().__init__("div")
+        self.content = self._sanitize_content(content)
+        self.font_size = font_size
+        self.bold = bold
+
+    def _sanitize_content(self, content: str) -> str:
+        """对内容进行安全转义"""
+        return html.escape(content)
+
+    def to_dict(self) -> Dict[str, Any]:
+        element = {
+            "tag": self.tag,
+            "text": {
+                "tag": "plain_text",
+                "content": self.content
+            }
+        }
+        if self.bold:
+            element["text"]["bold"] = True
+        return element
+
+
+class DividerElement(CardElement):
+    """分割线元素"""
+    def __init__(self):
+        super().__init__("hr")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"tag": "hr"}
+
+
+class CardBuilder:
+    """飞书卡片构建器"""
+
+    def __init__(self, title: str = ""):
+        self.header = {"title": {"content": self._sanitize_title(title)}} if title else {}
+        self.elements: List[Dict[str, Any]] = []
+
+    def _sanitize_title(self, title: str) -> str:
+        """对标题进行安全转义"""
+        return html.escape(title)
+
+    def add_text(self, content: str, bold: bool = False) -> 'CardBuilder':
+        """添加文本元素"""
+        element = TextElement(content=content, bold=bold)
+        self.elements.append(element.to_dict())
+        return self
+
+    def add_divider(self) -> 'CardBuilder':
+        """添加分割线"""
+        element = DividerElement()
+        self.elements.append(element.to_dict())
+        return self
+
+    def build(self) -> Dict[str, Any]:
+        """构建最终卡片数据"""
+        card_data = {}
+        if self.header:
+            card_data["header"] = self.header
+        card_data["elements"] = self.elements
+        return card_data
+
+
+def sanitize_for_card(content: str) -> str:
+    """为卡片内容进行安全转义"""
+    # 移除潜在危险字符
+    sanitized = html.escape(content, quote=True)
+    # 替换飞书不支持的格式
+    sanitized = sanitized.replace('\n', '\\n')
+    sanitized = sanitized.replace('\r', '\\r')
+    return sanitized
 
 
 class BaseCard(ABC):
     """
-    飞书卡片基类.
+    Lark card base class.
 
-    所有具体卡片必须继承此基类。
+    All specific cards must inherit from this base class.
     """
 
     def __init__(self) -> None:
-        """初始化卡片."""
+        """Initialize card."""
         self._builder = LarkCardBuilder()
 
     @abstractmethod
@@ -41,14 +125,18 @@ class BaseCard(ABC):
         color: str = "blue",
     ) -> None:
         """添加标题."""
-        self._builder.set_header(title, color)
+        # 对标题进行安全转义
+        safe_title = sanitize_for_card(title)
+        self._builder.set_header(safe_title, color)
 
     def _add_markdown(
         self,
         content: str,
     ) -> None:
         """添加Markdown内容."""
-        self._builder.add_markdown(content)
+        # 对内容进行安全转义
+        safe_content = sanitize_for_card(content)
+        self._builder.add_markdown(safe_content)
 
     def _add_divider(self) -> None:
         """添加分割线."""
@@ -59,7 +147,12 @@ class BaseCard(ABC):
         fields: List[Dict[str, str]],
     ) -> None:
         """添加字段列表."""
-        self._builder.add_field(fields)
+        # 对字段内容进行安全转义
+        safe_fields = []
+        for field in fields:
+            safe_field = {"content": sanitize_for_card(field.get("content", ""))}
+            safe_fields.append(safe_field)
+        self._builder.add_field(safe_fields)
 
     def _add_actions(
         self,
@@ -85,7 +178,9 @@ class BaseCard(ABC):
         Returns:
             Dict: 按钮元素
         """
-        return LarkCardBuilder.create_button(text, value, style)
+        # 对按钮文本进行安全转义
+        safe_text = sanitize_for_card(text)
+        return LarkCardBuilder.create_button(safe_text, value, style)
 
 
 class ProjectOverviewCard(BaseCard):

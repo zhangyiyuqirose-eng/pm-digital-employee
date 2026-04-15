@@ -1,288 +1,226 @@
 """
-PM Digital Employee - Lark Schemas
-项目经理数字员工系统 - 飞书事件、消息、卡片的Pydantic模型
+PM Digital Employee - Lark (Feishu) Integration Schemas
+项目经理数字员工系统 - 飞书开放平台数据模型与卡片构建器
+
+飞书作为唯一用户交互入口。
 """
 
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 
-# ==================== 事件模型 ====================
+# ==================== 颜色模板枚举 ====================
 
 
-class LarkEventHeader(BaseModel):
-    """飞书事件头."""
+class LarkCardColor(str, Enum):
+    """飞书卡片颜色模板."""
 
-    event_id: str = Field(..., description="事件ID")
-    event_type: str = Field(..., description="事件类型")
-    create_time: str = Field(..., description="事件创建时间")
-    token: Optional[str] = Field(None, description="验证Token")
-    app_id: Optional[str] = Field(None, description="应用ID")
-    tenant_key: Optional[str] = Field(None, description="租户Key")
-
-
-class LarkEvent(BaseModel):
-    """飞书事件模型."""
-
-    schema_version: Optional[str] = Field(None, alias="schema", description="Schema版本")
-    header: LarkEventHeader = Field(..., description="事件头")
-    event: Dict[str, Any] = Field(..., description="事件体")
-
-
-class LarkWebhookRequest(BaseModel):
-    """飞书Webhook请求模型."""
-
-    schema: Optional[str] = Field(None, description="Schema版本")
-    header: Optional[Dict[str, Any]] = Field(None, description="事件头")
-    event: Optional[Dict[str, Any]] = Field(None, description="事件体")
-
-    # URL验证专用字段
-    challenge: Optional[str] = Field(None, description="挑战码（URL验证）")
-    token: Optional[str] = Field(None, description="Token（URL验证）")
-    type: Optional[str] = Field(None, description="类型（URL验证）")
+    BLUE = "blue"
+    GREEN = "green"
+    RED = "red"
+    ORANGE = "orange"
+    PURPLE = "purple"
+    INDIGO = "indigo"
+    GREY = "grey"
+    TURQUOISE = "turquoise"
+    YELLOW = "yellow"
+    DEFAULT = "default"
+    PRIMARY = "primary"
+    DANGER = "danger"
+    WARNING = "warning"
+    SUCCESS = "success"
 
 
-# ==================== 消息模型 ====================
-
-
-class LarkMessageSender(BaseModel):
-    """飞书消息发送者."""
-
-    sender_id: Optional[Dict[str, str]] = Field(None, description="发送者ID")
-    sender_type: Optional[str] = Field(None, description="发送者类型")
-    tenant_key: Optional[str] = Field(None, description="租户Key")
+# ==================== 飞书消息模型 ====================
 
 
 class LarkMessage(BaseModel):
-    """飞书消息模型."""
+    """飞书消息数据模型."""
 
-    message_id: str = Field(..., description="消息ID")
-    root_id: Optional[str] = Field(None, description="根消息ID")
-    parent_id: Optional[str] = Field(None, description="父消息ID")
-    create_time: Optional[str] = Field(None, description="创建时间")
-    chat_id: str = Field(..., description="会话ID")
-    chat_type: Optional[str] = Field(None, description="会话类型")
-    message_type: str = Field(..., description="消息类型")
-    content: Optional[str] = Field(None, description="消息内容")
-    mentions: Optional[List[Dict[str, Any]]] = Field(None, description="@列表")
-
-    # 发送者信息
-    sender: Optional[LarkMessageSender] = Field(None, description="发送者")
-
-
-class LarkMessageEvent(BaseModel):
-    """飞书消息事件."""
-
-    sender: Dict[str, Any] = Field(..., description="发送者信息")
-    message: LarkMessage = Field(..., description="消息内容")
+    message_id: str = ""
+    chat_id: str = ""
+    chat_type: str = "p2p"
+    message_type: str = "text"
+    content: str = ""
+    sender_user_id: str = ""
+    sender_open_id: str = ""
+    create_time: str = ""
+    update_time: str = ""
+    parent_id: str = ""
+    root_id: str = ""
 
 
-# ==================== 卡片模型 ====================
+class LarkEvent(BaseModel):
+    """飞书事件数据模型."""
+
+    event_id: str = ""
+    event_type: str = ""
+    schema_version: str = "2.0"
+    token: str = ""
+    create_time: str = ""
+    app_id: str = ""
+    tenant_key: str = ""
+
+    # im.message.receive_v1 事件特有字段
+    message: Optional[Dict[str, Any]] = None
+    sender: Optional[Dict[str, Any]] = None
 
 
-class LarkCardAction(BaseModel):
-    """飞书卡片动作."""
+class LarkCallbackRequest(BaseModel):
+    """飞书卡片交互回调请求."""
 
-    value: Dict[str, Any] = Field(default_factory=dict, description="动作值")
-    option: Optional[str] = Field(None, description="选项")
-    tag: Optional[str] = Field(None, description="标签")
-
-
-class LarkCardContext(BaseModel):
-    """飞书卡片上下文."""
-
-    open_message_id: Optional[str] = Field(None, description="消息ID")
-    open_chat_id: Optional[str] = Field(None, description="会话ID")
-    open_app_id: Optional[str] = Field(None, description="应用ID")
-    tenant_key: Optional[str] = Field(None, description="租户Key")
+    open_chat_id: str = ""
+    open_message_id: str = ""
+    open_id: str = ""
+    user_id: str = ""
+    tenant_key: str = ""
+    token: str = ""
+    action: Dict[str, Any] = Field(default_factory=dict)
+    value: Dict[str, Any] = Field(default_factory=dict)
+    timezone: str = ""
 
 
-class LarkCardCallback(BaseModel):
-    """飞书卡片回调请求."""
-
-    challenge: Optional[str] = Field(None, description="挑战码")
-    type: Optional[str] = Field(None, description="类型")
-    token: Optional[str] = Field(None, description="Token")
-    action: Optional[LarkCardAction] = Field(None, description="动作")
-    open_id: Optional[str] = Field(None, description="用户OpenID")
-    user_id: Optional[str] = Field(None, description="用户ID")
-    union_id: Optional[str] = Field(None, description="用户UnionID")
-    open_message_id: Optional[str] = Field(None, description="消息ID")
-    open_chat_id: Optional[str] = Field(None, description="会话ID")
-    tenant_key: Optional[str] = Field(None, description="租户Key")
-    context: Optional[LarkCardContext] = Field(None, description="上下文")
-
-
-# ==================== 用户模型 ====================
+# ==================== 飞书用户/群模型 ====================
 
 
 class LarkUser(BaseModel):
-    """飞书用户模型."""
+    """飞书用户信息."""
 
-    open_id: Optional[str] = Field(None, description="OpenID")
-    user_id: Optional[str] = Field(None, description="用户ID")
-    union_id: Optional[str] = Field(None, description="UnionID")
-    name: Optional[str] = Field(None, description="姓名")
-    en_name: Optional[str] = Field(None, description="英文名")
-    nickname: Optional[str] = Field(None, description="昵称")
-    email: Optional[str] = Field(None, description="邮箱")
-    mobile: Optional[str] = Field(None, description="手机号")
-    gender: Optional[int] = Field(None, description="性别")
-    avatar_url: Optional[str] = Field(None, description="头像URL")
-    status: Optional[Dict[str, Any]] = Field(None, description="状态")
-    department_ids: Optional[List[str]] = Field(None, description="部门ID列表")
-    leader_user_id: Optional[str] = Field(None, description="上级ID")
-    city: Optional[str] = Field(None, description="城市")
-    country: Optional[str] = Field(None, description="国家")
-    work_station: Optional[str] = Field(None, description="工位")
-    join_time: Optional[int] = Field(None, description="入职时间")
-    employee_no: Optional[str] = Field(None, description="工号")
-    positions: Optional[List[Dict[str, Any]]] = Field(None, description="职位列表")
-
-
-# ==================== 群模型 ====================
+    open_id: str = ""
+    user_id: str = ""
+    union_id: str = ""
+    name: str = ""
+    avatar_url: str = ""
+    email: str = ""
+    mobile: str = ""
+    department_ids: List[str] = Field(default_factory=list)
 
 
 class LarkChat(BaseModel):
-    """飞书群聊模型."""
+    """飞书群聊信息."""
 
-    chat_id: str = Field(..., description="群ID")
-    name: Optional[str] = Field(None, description="群名称")
-    description: Optional[str] = Field(None, description="群描述")
-    owner_id: Optional[str] = Field(None, description="群主ID")
-    owner_id_type: Optional[str] = Field(None, description="群主ID类型")
-    member_count: Optional[int] = Field(None, description="成员数量")
-    user_id_list: Optional[List[str]] = Field(None, description="用户ID列表")
-    group_message_pin: Optional[str] = Field(None, description="群置顶消息")
-    join_message_visibility: Optional[str] = Field(None, description="入群消息可见性")
-    leave_message_visibility: Optional[str] = Field(None, description="离群消息可见性")
-    members: Optional[List[Dict[str, Any]]] = Field(None, description="成员列表")
+    chat_id: str = ""
+    name: str = ""
+    description: str = ""
+    owner_id: str = ""
+    members: List[str] = Field(default_factory=list)
 
 
-# ==================== 响应模型 ====================
-
-
-class LarkSendMessageResponse(BaseModel):
-    """发送消息响应."""
-
-    code: int = Field(..., description="状态码")
-    msg: str = Field(..., description="消息")
-    data: Optional[Dict[str, Any]] = Field(None, description="数据")
-
-
-# ==================== 交互式卡片构建器 ====================
+# ==================== 飞书卡片构建器 ====================
 
 
 class LarkCardBuilder:
-    """飞书交互式卡片构建器."""
+    """
+    飞书交互式卡片构建器.
+
+    实现飞书开放平台 Interactive Card 的 fluent API 构建方式。
+    生成的 JSON 结构符合飞书消息卡片规范:
+    {
+        "config": {"wide_screen_mode": true},
+        "header": {"title": {"tag": "plain_text", "content": "..."}, "template": "blue"},
+        "elements": [
+            {"tag": "markdown", "content": "..."},
+            {"tag": "hr"},
+            {"tag": "fields", "fields": [...]},
+            {"tag": "action", "actions": [...]}
+        ]
+    }
+    """
 
     def __init__(self) -> None:
         """初始化卡片构建器."""
-        self._elements: List[Dict[str, Any]] = []
+        self._config: Dict[str, Any] = {"wide_screen_mode": True}
         self._header: Optional[Dict[str, Any]] = None
+        self._elements: List[Dict[str, Any]] = []
 
-    def set_header(self, title: str, template: str = "blue") -> "LarkCardBuilder":
+    def set_header(self, title: str, color: str = "blue") -> "LarkCardBuilder":
         """
-        设置卡片头部.
+        设置卡片头部标题和颜色.
 
         Args:
-            title: 标题
-            template: 模板颜色
-
-        Returns:
-            LarkCardBuilder: 构建器实例
+            title: 标题文本
+            color: 颜色模板 (blue/green/red/orange/purple/indigo/grey等)
         """
         self._header = {
-            "title": {"tag": "plain_text", "content": title},
-            "template": template,
+            "title": {
+                "tag": "plain_text",
+                "content": title,
+            },
+            "template": color,
         }
         return self
 
     def add_markdown(self, content: str) -> "LarkCardBuilder":
         """
-        添加Markdown内容.
+        添加Markdown内容元素.
 
         Args:
-            content: Markdown内容
-
-        Returns:
-            LarkCardBuilder: 构建器实例
+            content: Markdown格式文本
         """
-        self._elements.append(
-            {
-                "tag": "markdown",
-                "content": content,
-            }
-        )
+        self._elements.append({
+            "tag": "markdown",
+            "content": content,
+        })
         return self
 
     def add_divider(self) -> "LarkCardBuilder":
-        """添加分割线."""
+        """添加分割线元素."""
         self._elements.append({"tag": "hr"})
         return self
 
     def add_field(self, fields: List[Dict[str, str]]) -> "LarkCardBuilder":
         """
-        添加字段列表.
+        添加字段列表元素.
 
         Args:
-            fields: 字段列表
-
-        Returns:
-            LarkCardBuilder: 构建器实例
+            fields: 字段列表，每项包含 "content" 键
         """
-        self._elements.append(
-            {
-                "tag": "div",
-                "fields": [
-                    {"is_short": True, "text": {"tag": "lark_md", "content": f.get("content", "")}}
-                    for f in fields
-                ],
-            }
-        )
+        lark_fields = []
+        for f in fields:
+            lark_fields.append({
+                "is_short": True,
+                "text": {
+                    "tag": "lark_md",
+                    "content": f.get("content", ""),
+                },
+            })
+
+        self._elements.append({
+            "tag": "field",
+            "fields": lark_fields,
+        })
         return self
 
-    def add_action(
-        self,
-        actions: List[Dict[str, Any]],
-    ) -> "LarkCardBuilder":
+    def add_action(self, actions: List[Dict[str, Any]]) -> "LarkCardBuilder":
         """
-        添加动作按钮.
+        添加操作按钮容器.
 
         Args:
-            actions: 动作列表
-
-        Returns:
-            LarkCardBuilder: 构建器实例
+            actions: 按钮元素列表
         """
-        self._elements.append(
-            {
-                "tag": "action",
-                "actions": actions,
-            }
-        )
+        self._elements.append({
+            "tag": "action",
+            "actions": actions,
+        })
         return self
 
     def build(self) -> Dict[str, Any]:
         """
-        构建卡片.
+        构建飞书卡片JSON.
 
         Returns:
-            Dict[str, Any]: 卡片JSON
+            Dict: 符合飞书卡片规范的JSON对象
         """
         card: Dict[str, Any] = {
-            "type": "template",
-            "data": {
-                "template": {
-                    "type": "card",
-                    "elements": self._elements,
-                },
-            },
+            "config": self._config,
         }
 
         if self._header:
-            card["data"]["template"]["header"] = self._header
+            card["header"] = self._header
+
+        card["elements"] = self._elements
 
         return card
 
@@ -293,19 +231,92 @@ class LarkCardBuilder:
         style: str = "primary",
     ) -> Dict[str, Any]:
         """
-        创建按钮元素.
+        创建飞书交互卡片按钮.
 
         Args:
             text: 按钮文本
-            value: 按钮值
-            style: 样式
+            value: 按钮回调值 (JSON对象)
+            style: 按钮样式 (primary/danger/default)
 
         Returns:
-            Dict[str, Any]: 按钮元素
+            Dict: 飞书按钮元素JSON
         """
+        style_map = {
+            "primary": "primary",
+            "danger": "danger",
+            "default": "default",
+            "green": "primary",
+            "red": "danger",
+            "blue": "primary",
+        }
+
         return {
             "tag": "button",
-            "text": {"tag": "plain_text", "content": text},
+            "text": {
+                "tag": "plain_text",
+                "content": text,
+            },
+            "type": style_map.get(style, style),
             "value": value,
-            "style": style,
         }
+
+    @staticmethod
+    def create_text_notice(
+        title: str,
+        desc: str,
+        source_desc: str = "",
+    ) -> Dict[str, Any]:
+        """
+        创建文本通知卡片（静态方法）.
+
+        Args:
+            title: 标题
+            desc: 描述内容
+            source_desc: 来源描述
+
+        Returns:
+            Dict: 卡片JSON
+        """
+        builder = LarkCardBuilder()
+        builder.set_header(title, "blue")
+        builder.add_markdown(desc)
+        if source_desc:
+            builder.add_divider()
+            builder.add_markdown(f"来源: {source_desc}")
+        return builder.build()
+
+    @staticmethod
+    def create_button_interaction(
+        title: str,
+        desc: str,
+        buttons: List[Dict[str, str]],
+    ) -> Dict[str, Any]:
+        """
+        创建带按钮交互的卡片（静态方法）.
+
+        Args:
+            title: 标题
+            desc: 描述内容
+            buttons: 按钮列表 [{"text": "...", "key": "..."}]
+
+        Returns:
+            Dict: 卡片JSON
+        """
+        builder = LarkCardBuilder()
+        builder.set_header(title, "blue")
+        builder.add_markdown(desc)
+        builder.add_divider()
+
+        actions = []
+        for btn in buttons:
+            key = btn.get("key", btn.get("text", ""))
+            actions.append(
+                LarkCardBuilder.create_button(
+                    text=btn["text"],
+                    value={"action": key},
+                    style="primary" if btn.get("key", "").startswith("confirm") else "default",
+                ),
+            )
+
+        builder.add_action(actions)
+        return builder.build()

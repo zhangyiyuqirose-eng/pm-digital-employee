@@ -1,17 +1,17 @@
 """
 PM Digital Employee - Lark Service
-项目经理数字员工系统 - 飞书业务服务
+PM Digital Employee System - Lark business service layer
 
-封装飞书常用业务操作：消息发送、文件处理、用户信息获取等。
+Encapsulates common Lark operations: message sending, card building,
+user info retrieval, etc.
 """
 
 import json
 from typing import Any, Dict, List, Optional
 
 from app.core.config import settings
-from app.core.exceptions import ErrorCode, LarkError
 from app.core.logging import get_logger
-from app.integrations.lark.client import LarkClient, get_lark_client
+from app.integrations.lark.client import LarkClient, LarkError, get_lark_client
 from app.integrations.lark.schemas import LarkCardBuilder
 
 logger = get_logger(__name__)
@@ -19,338 +19,458 @@ logger = get_logger(__name__)
 
 class LarkService:
     """
-    飞书业务服务.
+    Lark business service.
 
-    封装飞书常用业务操作。
+    Wraps Lark client with higher-level business operations.
     """
 
     def __init__(self, client: Optional[LarkClient] = None) -> None:
         """
-        初始化飞书服务.
+        Initialize Lark service.
 
         Args:
-            client: 飞书客户端实例
+            client: Lark client instance
         """
         self._client = client or get_lark_client()
 
     @property
     def client(self) -> LarkClient:
-        """获取飞书客户端."""
+        """Get Lark client."""
         return self._client
 
-    # ==================== 消息发送 ====================
+    # ==================== Message sending ====================
 
     async def send_text(
         self,
-        receive_id: str,
+        user_id: str,
         text: str,
-        receive_id_type: str = "chat_id",
     ) -> Dict:
         """
-        发送文本消息.
+        Send text message to user.
 
         Args:
-            receive_id: 接收者ID（用户OpenID或群ID）
-            text: 文本内容
-            receive_id_type: 接收者类型
+            user_id: Receiver user ID (open_id)
+            text: Text content
 
         Returns:
-            Dict: 发送结果
+            Dict: Send result
         """
-        content = json.dumps({"text": text})
         return await self._client.send_text_message(
-            receive_id=receive_id,
-            receive_id_type=receive_id_type,
-            content=content,
+            receive_id=user_id,
+            text=text,
         )
 
-    async def send_markdown(
+    async def send_text_to_chat(
         self,
-        receive_id: str,
-        markdown: str,
-        receive_id_type: str = "chat_id",
+        chat_id: str,
+        text: str,
     ) -> Dict:
         """
-        发送Markdown消息.
+        Send text message to group chat.
 
         Args:
-            receive_id: 接收者ID
-            markdown: Markdown内容
-            receive_id_type: 接收者类型
+            chat_id: Group chat ID
+            text: Text content
 
         Returns:
-            Dict: 发送结果
+            Dict: Send result
         """
-        content = json.dumps({"zh_cn": {"content": markdown}})
-        return await self._client.send_text_message(
-            receive_id=receive_id,
-            receive_id_type=receive_id_type,
-            content=content,
-            msg_type="post",
+        return await self._client.send_text_to_chat(
+            chat_id=chat_id,
+            text=text,
         )
 
     async def send_card(
         self,
-        receive_id: str,
+        user_id: str,
         card: Dict[str, Any],
-        receive_id_type: str = "chat_id",
     ) -> Dict:
         """
-        发送交互式卡片.
+        Send interactive card message to user.
 
         Args:
-            receive_id: 接收者ID
-            card: 卡片内容
-            receive_id_type: 接收者类型
+            user_id: Receiver user ID (open_id)
+            card: Card JSON (LarkCardBuilder output)
 
         Returns:
-            Dict: 发送结果
+            Dict: Send result
         """
-        return await self._client.send_card_message(
-            receive_id=receive_id,
-            receive_id_type=receive_id_type,
+        return await self._client.send_interactive_card(
+            receive_id=user_id,
             card=card,
         )
 
-    async def reply_text(
+    async def send_card_to_chat(
         self,
-        message_id: str,
-        text: str,
-    ) -> Dict:
-        """
-        回复文本消息.
-
-        Args:
-            message_id: 原消息ID
-            text: 回复内容
-
-        Returns:
-            Dict: 发送结果
-        """
-        content = json.dumps({"text": text})
-        return await self._client.reply_message(
-            message_id=message_id,
-            content=content,
-        )
-
-    async def reply_card(
-        self,
-        message_id: str,
+        chat_id: str,
         card: Dict[str, Any],
     ) -> Dict:
         """
-        回复卡片消息.
+        Send interactive card message to group chat.
 
         Args:
-            message_id: 原消息ID
-            card: 卡片内容
+            chat_id: Group chat ID
+            card: Card JSON
 
         Returns:
-            Dict: 发送结果
+            Dict: Send result
         """
-        content = json.dumps(card)
-        return await self._client.reply_message(
-            message_id=message_id,
-            content=content,
+        return await self._client.send_to_chat(
+            chat_id=chat_id,
             msg_type="interactive",
+            content={
+                "type": "template",
+                "data": card,
+            },
         )
 
-    # ==================== 用户信息 ====================
+    # ==================== User info ====================
 
-    async def get_user_info(self, open_id: str) -> Dict:
+    async def get_user_info(self, user_id: str) -> Dict:
         """
-        获取用户信息.
+        Get user info.
 
         Args:
-            open_id: 用户OpenID
+            user_id: User ID
 
         Returns:
-            Dict: 用户信息
+            Dict: User info
         """
-        return await self._client.get_user_info(open_id)
+        return await self._client.get_user_info(user_id)
 
-    async def get_user_name(self, open_id: str) -> str:
+    async def get_user_name(self, user_id: str) -> str:
         """
-        获取用户姓名.
+        Get user display name.
 
         Args:
-            open_id: 用户OpenID
+            user_id: User ID
 
         Returns:
-            str: 用户姓名
+            str: User display name
         """
-        user = await self.get_user_info(open_id)
-        return user.get("name", open_id)
+        try:
+            user = await self.get_user_info(user_id)
+            return user.get("data", {}).get("user", {}).get("name", user_id)
+        except LarkError:
+            return user_id
 
-    # ==================== 群信息 ====================
+    # ==================== Chat info ====================
 
     async def get_chat_info(self, chat_id: str) -> Dict:
         """
-        获取群信息.
+        Get group chat info.
 
         Args:
-            chat_id: 群ID
+            chat_id: Group chat ID
 
         Returns:
-            Dict: 群信息
+            Dict: Chat info
         """
         return await self._client.get_chat_info(chat_id)
 
-    async def get_chat_members(self, chat_id: str) -> List[Dict]:
-        """
-        获取群成员列表.
-
-        Args:
-            chat_id: 群ID
-
-        Returns:
-            List[Dict]: 成员列表
-        """
-        return await self._client.get_chat_members(chat_id)
-
-    # ==================== 卡片构建 ====================
+    # ==================== Card building ====================
 
     def create_card(self) -> LarkCardBuilder:
         """
-        创建卡片构建器.
+        Create card builder.
 
         Returns:
-            LarkCardBuilder: 卡片构建器
+            LarkCardBuilder: Card builder instance
         """
         return LarkCardBuilder()
 
     async def send_clarification_card(
         self,
-        receive_id: str,
+        user_id: str,
         matched_skill: str,
         skill_description: str,
         confidence: float,
-        receive_id_type: str = "chat_id",
     ) -> Dict:
         """
-        发送意图澄清卡片.
+        Send intent clarification card.
 
         Args:
-            receive_id: 接收者ID
-            matched_skill: 匹配的Skill名称
-            skill_description: Skill描述
-            confidence: 置信度
-            receive_id_type: 接收者类型
+            user_id: Receiver user ID
+            matched_skill: Matched skill name
+            skill_description: Skill description
+            confidence: Confidence score
 
         Returns:
-            Dict: 发送结果
+            Dict: Send result
         """
-        card = (
-            self.create_card()
-            .set_header("请确认您的意图", "blue")
-            .add_markdown(f"检测到您可能想要：**{matched_skill}**\n\n{skill_description}\n\n置信度: {confidence:.0%}")
-            .add_divider()
-            .add_action(
-                [
-                    LarkCardBuilder.create_button(
-                        "确认执行",
-                        {"action": "confirm", "skill": matched_skill},
-                        "primary",
-                    ),
-                    LarkCardBuilder.create_button(
-                        "取消",
-                        {"action": "cancel"},
-                        "default",
-                    ),
-                ]
-            )
-            .build()
+        card = LarkCardBuilder.create_button_interaction(
+            title="Please confirm your intent",
+            desc=f"Detected you may want: **{matched_skill}**\n{skill_description}\nConfidence: {confidence:.0%}",
+            buttons=[
+                {"text": "Confirm", "key": f"confirm:{matched_skill}"},
+                {"text": "Cancel", "key": "cancel"},
+            ],
         )
 
-        return await self.send_card(receive_id, card, receive_id_type)
+        return await self.send_card(user_id, card)
+
+    async def send_clarification_card_to_chat(
+        self,
+        chat_id: str,
+        matched_skill: str,
+        skill_description: str,
+        confidence: float,
+    ) -> Dict:
+        """
+        Send intent clarification card to group chat.
+
+        Args:
+            chat_id: Group chat ID
+            matched_skill: Matched skill name
+            skill_description: Skill description
+            confidence: Confidence score
+
+        Returns:
+            Dict: Send result
+        """
+        card = LarkCardBuilder.create_button_interaction(
+            title="Please confirm your intent",
+            desc=f"Detected you may want: **{matched_skill}**\n{skill_description}\nConfidence: {confidence:.0%}",
+            buttons=[
+                {"text": "Confirm", "key": f"confirm:{matched_skill}"},
+                {"text": "Cancel", "key": "cancel"},
+            ],
+        )
+
+        return await self.send_card_to_chat(chat_id, card)
 
     async def send_error_card(
         self,
-        receive_id: str,
+        user_id: str,
         error_message: str,
-        receive_id_type: str = "chat_id",
     ) -> Dict:
         """
-        发送错误提示卡片.
+        Send error notification card.
 
         Args:
-            receive_id: 接收者ID
-            error_message: 错误信息
-            receive_id_type: 接收者类型
+            user_id: Receiver user ID
+            error_message: Error message
 
         Returns:
-            Dict: 发送结果
+            Dict: Send result
         """
-        card = (
-            self.create_card()
-            .set_header("操作失败", "red")
-            .add_markdown(f"❌ {error_message}")
-            .build()
+        card = LarkCardBuilder.create_text_notice(
+            title="Operation Failed",
+            desc=f"{error_message}",
         )
 
-        return await self.send_card(receive_id, card, receive_id_type)
+        return await self.send_card(user_id, card)
+
+    async def send_error_card_to_chat(
+        self,
+        chat_id: str,
+        error_message: str,
+    ) -> Dict:
+        """
+        Send error notification card to group chat.
+
+        Args:
+            chat_id: Group chat ID
+            error_message: Error message
+
+        Returns:
+            Dict: Send result
+        """
+        card = LarkCardBuilder.create_text_notice(
+            title="Operation Failed",
+            desc=f"{error_message}",
+        )
+
+        return await self.send_card_to_chat(chat_id, card)
 
     async def send_success_card(
         self,
-        receive_id: str,
+        user_id: str,
         title: str,
         message: str,
-        receive_id_type: str = "chat_id",
     ) -> Dict:
         """
-        发送成功提示卡片.
+        Send success notification card.
 
         Args:
-            receive_id: 接收者ID
-            title: 标题
-            message: 消息内容
-            receive_id_type: 接收者类型
+            user_id: Receiver user ID
+            title: Card title
+            message: Success message
 
         Returns:
-            Dict: 发送结果
+            Dict: Send result
         """
-        card = (
-            self.create_card()
-            .set_header(title, "green")
-            .add_markdown(f"✅ {message}")
-            .build()
+        card = LarkCardBuilder.create_text_notice(
+            title=title,
+            desc=message,
         )
 
-        return await self.send_card(receive_id, card, receive_id_type)
+        return await self.send_card(user_id, card)
+
+    async def send_success_card_to_chat(
+        self,
+        chat_id: str,
+        title: str,
+        message: str,
+    ) -> Dict:
+        """
+        Send success notification card to group chat.
+
+        Args:
+            chat_id: Group chat ID
+            title: Card title
+            message: Success message
+
+        Returns:
+            Dict: Send result
+        """
+        card = LarkCardBuilder.create_text_notice(
+            title=title,
+            desc=message,
+        )
+
+        return await self.send_card_to_chat(chat_id, card)
 
     async def send_async_task_accepted(
         self,
-        receive_id: str,
+        user_id: str,
         task_name: str,
-        receive_id_type: str = "chat_id",
     ) -> Dict:
         """
-        发送异步任务已受理提示.
+        Send async task accepted notification.
 
         Args:
-            receive_id: 接收者ID
-            task_name: 任务名称
-            receive_id_type: 接收者类型
+            user_id: Receiver user ID
+            task_name: Task name
 
         Returns:
-            Dict: 发送结果
+            Dict: Send result
         """
-        card = (
-            self.create_card()
-            .set_header("任务已受理", "blue")
-            .add_markdown(f"⏳ 您的 **{task_name}** 任务已开始处理\n\n处理完成后会主动通知您，请稍候...")
-            .build()
+        card = LarkCardBuilder.create_text_notice(
+            title="Task Accepted",
+            desc=f"Your **{task_name}** task has started processing.\n\nYou will be notified when it completes. Please wait...",
         )
 
-        return await self.send_card(receive_id, card, receive_id_type)
+        return await self.send_card(user_id, card)
+
+    async def send_async_task_accepted_to_chat(
+        self,
+        chat_id: str,
+        task_name: str,
+    ) -> Dict:
+        """
+        Send async task accepted notification to group chat.
+
+        Args:
+            chat_id: Group chat ID
+            task_name: Task name
+
+        Returns:
+            Dict: Send result
+        """
+        card = LarkCardBuilder.create_text_notice(
+            title="Task Accepted",
+            desc=f"Your **{task_name}** task has started processing.\n\nYou will be notified when it completes. Please wait...",
+        )
+
+        return await self.send_card_to_chat(chat_id, card)
+
+    # ==================== Markdown messages ====================
+
+    async def send_project_overview(
+        self,
+        user_id: str,
+        project_name: str,
+        status: str,
+        progress: int,
+        risks: List[str],
+        next_milestone: str,
+    ) -> Dict:
+        """
+        Send project overview Markdown message.
+
+        Args:
+            user_id: Receiver user ID
+            project_name: Project name
+            status: Project status
+            progress: Project progress percentage
+            risks: Risk list
+            next_milestone: Next milestone
+
+        Returns:
+            Dict: Send result
+        """
+        content = f"""# Project Overview: {project_name}
+
+## Basic Info
+- **Status**: {status}
+- **Progress**: {progress}%
+
+## Risk Alerts
+{chr(10).join([f'- {r}' for r in risks]) if risks else 'No current risks'}
+
+## Next Milestone
+{next_milestone}
+"""
+        return await self._client.send_text_message(
+            receive_id=user_id,
+            text=content,
+        )
+
+    async def send_weekly_report(
+        self,
+        user_id: str,
+        project_name: str,
+        week_start: str,
+        week_end: str,
+        progress: int,
+        completed_tasks: List[str],
+        pending_tasks: List[str],
+        risks: List[str],
+    ) -> Dict:
+        """
+        Send weekly report Markdown message.
+
+        Args:
+            user_id: Receiver user ID
+            project_name: Project name
+            week_start: Week start date
+            week_end: Week end date
+            progress: Overall progress
+            completed_tasks: Completed tasks
+            pending_tasks: Pending tasks
+            risks: Risk list
+
+        Returns:
+            Dict: Send result
+        """
+        content = f"""# Weekly Report: {project_name}
+> Period: {week_start} ~ {week_end}
+
+## Overall Progress
+**{progress}%**
+
+## Completed This Week
+{chr(10).join([f'- {t}' for t in completed_tasks]) if completed_tasks else 'None'}
+
+## Pending Next Week
+{chr(10).join([f'- {t}' for t in pending_tasks]) if pending_tasks else 'None'}
+
+## Risk Alerts
+{chr(10).join([f'- {r}' for r in risks]) if risks else 'No current risks'}
+"""
+        return await self._client.send_text_message(
+            receive_id=user_id,
+            text=content,
+        )
 
 
-# 全局服务实例
+# Global service instance
 _lark_service: Optional[LarkService] = None
 
 
 def get_lark_service() -> LarkService:
-    """获取飞书服务实例."""
+    """Get Lark service instance."""
     global _lark_service
     if _lark_service is None:
         _lark_service = LarkService()

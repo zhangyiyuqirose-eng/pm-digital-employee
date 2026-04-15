@@ -1,8 +1,8 @@
 """
 PM Digital Employee - Idempotency Service
-项目经理数字员工系统 - 事件幂等控制服务
+PM Digital Employee System - Event idempotency control service
 
-基于Redis实现飞书事件幂等处理，防止重复消费。
+Based on Redis for Lark event idempotency processing to prevent duplicate consumption.
 """
 
 import json
@@ -20,31 +20,28 @@ logger = get_logger(__name__)
 
 class IdempotencyService:
     """
-    幂等控制服务.
+    Idempotency control service.
 
-    基于Redis实现事件幂等处理，防止飞书事件重复消费。
-    支持自定义过期时间，默认24小时。
+    Based on Redis for event idempotency processing to prevent Lark event duplicate consumption.
+    Supports custom TTL, default 24 hours.
     """
 
     def __init__(self, redis_client: Optional[redis.Redis] = None) -> None:
         """
-        初始化幂等服务.
+        Initialize idempotency service.
 
         Args:
-            redis_client: Redis客户端实例
+            redis_client: Redis client instance
         """
         self._redis = redis_client
         self._key_prefix = "idempotency:lark:"
-        self._default_ttl = 24 * 60 * 60  # 24小时
+        self._default_ttl = 24 * 60 * 60  # 24 hours
 
     async def _get_redis(self) -> redis.Redis:
         """获取Redis客户端."""
         if self._redis is None:
-            self._redis = redis.Redis(
-                host=settings.redis.host,
-                port=settings.redis.port,
-                password=settings.redis.password,
-                db=settings.redis.db,
+            self._redis = redis.Redis.from_url(
+                settings.redis_url,
                 decode_responses=True,
             )
         return self._redis
@@ -327,7 +324,7 @@ class CardCallbackIdempotencyService:
 
     async def check_callback(
         self,
-        open_message_id: str,
+        msg_id: str,
         action_value: Dict[str, Any],
     ) -> bool:
         """
@@ -336,7 +333,7 @@ class CardCallbackIdempotencyService:
         使用消息ID+action_value作为唯一标识。
 
         Args:
-            open_message_id: 消息ID
+            msg_id: 消息ID
             action_value: 动作值
 
         Returns:
@@ -344,7 +341,7 @@ class CardCallbackIdempotencyService:
         """
         # 构建唯一标识
         action_key = json.dumps(action_value, sort_keys=True)
-        callback_id = f"{open_message_id}:{action_key}"
+        callback_id = f"{msg_id}:{action_key}"
 
         return await self._service.check_and_lock(
             event_id=callback_id,
@@ -354,7 +351,7 @@ class CardCallbackIdempotencyService:
 
     async def mark_callback_completed(
         self,
-        open_message_id: str,
+        msg_id: str,
         action_value: Dict[str, Any],
         result_card_id: Optional[str] = None,
     ) -> bool:
@@ -362,7 +359,7 @@ class CardCallbackIdempotencyService:
         标记卡片回调处理完成.
 
         Args:
-            open_message_id: 消息ID
+            msg_id: 消息ID
             action_value: 动作值
             result_card_id: 结果卡片ID
 
@@ -370,7 +367,7 @@ class CardCallbackIdempotencyService:
             bool: 是否成功标记
         """
         action_key = json.dumps(action_value, sort_keys=True)
-        callback_id = f"{open_message_id}:{action_key}"
+        callback_id = f"{msg_id}:{action_key}"
 
         return await self._service.mark_completed(
             event_id=callback_id,

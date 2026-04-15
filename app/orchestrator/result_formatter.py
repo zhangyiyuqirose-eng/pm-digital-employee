@@ -1,8 +1,9 @@
 """
 PM Digital Employee - Result Formatter
-项目经理数字员工系统 - 结果格式化器
+PM Digital Employee System - Result formatter
 
-将Skill执行结果转换为飞书可展示的格式（文本、卡片、文件）。
+Converts skill execution results to Lark-displayable formats (text, cards, files).
+Lark as the primary user interaction entrypoint.
 """
 
 import json
@@ -18,15 +19,15 @@ logger = get_logger(__name__)
 
 class ResultFormatter:
     """
-    结果格式化器.
+    Result formatter.
 
-    将Skill执行结果转换为飞书展示格式。
+    Converts skill execution results to Lark display formats.
     """
 
     def __init__(self) -> None:
-        """初始化格式化器."""
-        self._max_text_length = 2000  # 飞书文本消息最大长度
-        self._max_card_elements = 20  # 卡片最大元素数
+        """Initialize formatter."""
+        self._max_text_length = 20000  # Lark text message max length
+        self._max_card_elements = 50  # Lark card max elements
 
     def format_result(
         self,
@@ -76,23 +77,23 @@ class ResultFormatter:
         Returns:
             Dict: 错误展示数据
         """
-        error_message = result.error_message or "执行失败"
+        error_message = result.error_message or "Execution failed."
 
-        # 构建错误卡片
+        # Build error card
         card = (
             LarkCardBuilder()
-            .set_header("操作失败", "red")
-            .add_markdown(f"❌ {error_message}")
+            .set_header("Operation Failed", "red")
+            .add_markdown(f"{error_message}")
             .add_divider()
             .add_action(
                 [
                     LarkCardBuilder.create_button(
-                        "重试",
+                        "Retry",
                         {"action": "retry", "skill": result.skill_name},
                         "primary",
                     ),
                     LarkCardBuilder.create_button(
-                        "取消",
+                        "Cancel",
                         {"action": "cancel"},
                         "default",
                     ),

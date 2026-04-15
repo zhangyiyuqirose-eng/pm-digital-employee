@@ -1,6 +1,8 @@
 """
 PM Digital Employee - Main Application
 项目经理数字员工系统 - FastAPI主入口
+
+飞书作为唯一用户交互入口。
 """
 
 from contextlib import asynccontextmanager
@@ -8,6 +10,8 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -16,7 +20,10 @@ from app.core.middleware import (
     TraceIDMiddleware,
     RequestLoggingMiddleware,
     ExceptionHandlerMiddleware,
+    RateLimitMiddleware,
+    ConcurrentLimitMiddleware,
 )
+from app.core.rate_limiter import limiter
 
 logger = get_logger(__name__)
 
@@ -29,8 +36,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     # 启动时执行
     logger.info(
         "Application starting",
-        app_name=settings.app_name,
-        environment=settings.app_env,
+        extra={
+            "app_name": settings.app_name,
+            "environment": settings.app_env,
+        }
     )
 
     # 注册Skills
@@ -41,11 +50,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     except Exception as e:
         logger.warning(f"Failed to register skills: {e}")
 
+    # 初始化数据库
+    try:
+        from app.db.session import init_db
+        await init_db()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+
     logger.info("Application started successfully")
 
     yield
 
     # 关闭时执行
+    try:
+        from app.db.session import close_db
+        await close_db()
+        logger.info("Database closed successfully")
+    except Exception as e:
+        logger.error(f"Failed to close database: {e}")
+
     logger.info("Application shutting down")
     logger.info("Application shutdown complete")
 
@@ -64,19 +88,26 @@ def create_application() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Configure rate limiter
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
     # 添加CORS中间件
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.cors_allow_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        allow_origin_regex=settings.cors_allow_origin_regex,
     )
 
-    # 添加自定义中间件
-    app.add_middleware(ExceptionHandlerMiddleware)
-    app.add_middleware(RequestLoggingMiddleware)
-    app.add_middleware(TraceIDMiddleware)
+    # 添加自定义中间件 - 按照处理顺序添加
+    app.add_middleware(ConcurrentLimitMiddleware, max_concurrent=50)  # 并发控制
+    app.add_middleware(RateLimitMiddleware, max_requests=60, time_window=60)  # 限流
+    app.add_middleware(ExceptionHandlerMiddleware)  # 异常处理
+    app.add_middleware(RequestLoggingMiddleware)    # 请求日志
+    app.add_middleware(TraceIDMiddleware)           # 追踪ID
 
     # 注册路由
     app.include_router(api_router)
@@ -97,7 +128,7 @@ async def root():
         "version": "1.0.0",
         "status": "running",
         "docs": "/docs",
-        "lark_configured": bool(settings.lark_app_id),
+        "lark_configured": settings.lark_configured,
     }
 
 

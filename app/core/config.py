@@ -1,6 +1,8 @@
 """
 PM Digital Employee - Configuration
-项目经理数字员工系统 - 配置管理
+PM Digital Employee System - Configuration Management
+
+Lark as the primary user interaction entrypoint.
 """
 
 import os
@@ -12,7 +14,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """全局配置."""
+    """Global configuration."""
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -20,7 +22,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # 应用配置
+    # Application settings
     app_name: str = "PM Digital Employee"
     app_env: str = "development"
     app_debug: bool = True
@@ -28,20 +30,21 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
 
-    # 数据库配置
+    # Database settings
     database_url: str = "sqlite+aiosqlite:///./pm_digital_employee.db"
 
-    # Redis配置
+    # Redis settings
     redis_url: str = "redis://localhost:6379/0"
 
-    # 飞书配置
+    # Lark configuration
     lark_app_id: str = ""
     lark_app_secret: str = ""
-    lark_encrypt_key: str = ""
-    lark_verification_token: str = ""
+    lark_encrypt_key: str = ""  # Event encrypt key
+    lark_verification_token: str = ""  # Callback verification token
     lark_api_domain: str = "https://open.feishu.cn"
+    lark_tenant_token_ttl: int = 7200
 
-    # LLM配置
+    # LLM settings
     llm_provider: str = "mock"
     llm_model_name: str = "gpt-4"
     llm_api_key: str = ""
@@ -49,13 +52,18 @@ class Settings(BaseSettings):
     llm_temperature: float = 0.7
     llm_max_tokens: int = 4096
 
-    # 安全配置
+    # Security settings
     security_enable_input_validation: bool = True
     security_max_input_length: int = 10000
 
-    # Celery配置
+    # Celery settings
     celery_broker_url: str = "pyamqp://guest@localhost//"
     celery_result_backend: str = "redis://localhost:6379/1"
+
+    @property
+    def lark_configured(self) -> bool:
+        """Check if Lark is configured."""
+        return bool(self.lark_app_id and self.lark_app_secret)
 
 
 @lru_cache

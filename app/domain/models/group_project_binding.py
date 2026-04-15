@@ -1,6 +1,8 @@
 """
 PM Digital Employee - Group Project Binding Model
 项目经理数字员工系统 - 飞书群项目绑定模型
+
+飞书作为唯一用户交互入口。
 """
 
 import uuid

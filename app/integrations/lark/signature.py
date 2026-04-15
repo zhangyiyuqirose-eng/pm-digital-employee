@@ -1,8 +1,8 @@
 """
 PM Digital Employee - Lark Signature Verification
-项目经理数字员工系统 - 飞书事件签名验签工具
+PM Digital Employee System - Lark Open Platform event signature verification
 
-实现飞书事件签名验证算法，确保请求来自飞书服务器。
+Lark uses SHA-256 signature verification for event push callbacks.
 """
 
 import hashlib
@@ -10,7 +10,6 @@ import time
 from typing import Optional
 
 from app.core.config import settings
-from app.core.exceptions import ErrorCode, LarkError
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -18,46 +17,54 @@ logger = get_logger(__name__)
 
 class LarkSignatureVerifier:
     """
-    飞书签名验证器.
+    Lark signature verifier.
 
-    实现飞书开放平台的事件签名验证算法。
+    Lark event push uses SHA-256 signature:
+    signature = SHA256(timestamp + nonce + encrypt_key + body)
+
+    For challenge verification (URL validation), Lark sends a POST request
+    with a JSON body containing a `challenge` field that should be echoed back.
     """
 
     @staticmethod
     def verify_signature(
+        signature: str,
         timestamp: str,
         nonce: str,
-        body: str,
-        signature: str,
+        body: str = "",
         encrypt_key: Optional[str] = None,
     ) -> bool:
         """
-        验证飞书事件签名.
+        Verify Lark event push signature.
 
-        签名算法：
-        1. 将 timestamp + nonce + encrypt_key + body 拼接
-        2. 计算 SHA256 摘要
-        3. 与签名对比
+        Signature algorithm:
+        1. Concatenate: timestamp + nonce + encrypt_key + body
+        2. Compute SHA-256 digest
+        3. Compare with provided signature
 
         Args:
-            timestamp: 请求时间戳
-            nonce: 请求随机数
-            body: 请求体字符串
-            signature: 请求签名
-            encrypt_key: 加密密钥
+            signature: Request signature from Lark
+            timestamp: Request timestamp
+            nonce: Random nonce string
+            body: Raw request body
+            encrypt_key: Lark app encrypt key (verification_token)
 
         Returns:
-            bool: 签名是否有效
+            bool: Whether signature is valid
         """
-        encrypt_key = encrypt_key or settings.lark.encrypt_key or ""
+        encrypt_key = encrypt_key or settings.lark_encrypt_key
 
-        # 拼接签名字符串
-        sign_base = timestamp + nonce + encrypt_key + body
+        if not encrypt_key:
+            logger.warning("Lark encrypt_key not configured, skipping signature verification")
+            return True
 
-        # 计算SHA256签名
-        calculated_signature = hashlib.sha256(sign_base.encode("utf-8")).hexdigest()
+        # Build signature string
+        sign_str = timestamp + nonce + encrypt_key + body
 
-        # 使用常量时间比较防止时序攻击
+        # Compute SHA-256 signature
+        calculated_signature = hashlib.sha256(sign_str.encode("utf-8")).hexdigest()
+
+        # Constant-time comparison to prevent timing attacks
         import secrets
 
         is_valid = secrets.compare_digest(calculated_signature, signature)
@@ -73,29 +80,28 @@ class LarkSignatureVerifier:
 
     @staticmethod
     def verify_request(
+        signature: str,
         timestamp: str,
         nonce: str,
-        body: str,
-        signature: str,
+        body: str = "",
+        encrypt_key: Optional[str] = None,
         max_age_seconds: int = 300,
     ) -> bool:
         """
-        验证飞书请求（包含时间戳检查）.
+        Verify Lark callback request (with timestamp check).
 
         Args:
-            timestamp: 请求时间戳
-            nonce: 请求随机数
-            body: 请求体字符串
-            signature: 请求签名
-            max_age_seconds: 最大时间差（秒）
+            signature: Request signature
+            timestamp: Request timestamp
+            nonce: Random nonce
+            body: Raw request body
+            encrypt_key: Encrypt key
+            max_age_seconds: Maximum allowed time difference (seconds)
 
         Returns:
-            bool: 请求是否有效
-
-        Raises:
-            LarkError: 验证失败
+            bool: Whether request is valid
         """
-        # 检查时间戳（防重放攻击）
+        # Check timestamp (anti-replay attack)
         try:
             request_time = int(timestamp)
             current_time = int(time.time())
@@ -109,71 +115,59 @@ class LarkSignatureVerifier:
                     time_diff=time_diff,
                     max_age_seconds=max_age_seconds,
                 )
-                raise LarkError(
-                    error_code=ErrorCode.INVALID_SIGNATURE,
-                    message=f"请求时间戳已过期，时间差: {time_diff}秒",
-                )
+                return False
         except ValueError:
-            raise LarkError(
-                error_code=ErrorCode.INVALID_SIGNATURE,
-                message="无效的时间戳格式",
-            )
+            logger.warning("Invalid timestamp format", timestamp=timestamp)
+            return False
 
-        # 验证签名
-        if settings.lark.verification_token:
-            if not LarkSignatureVerifier.verify_signature(timestamp, nonce, body, signature):
-                raise LarkError(
-                    error_code=ErrorCode.INVALID_SIGNATURE,
-                    message="签名验证失败",
-                )
-
-        return True
+        # Verify signature
+        return LarkSignatureVerifier.verify_signature(
+            signature=signature,
+            timestamp=timestamp,
+            nonce=nonce,
+            body=body,
+            encrypt_key=encrypt_key,
+        )
 
     @staticmethod
-    def verify_url(
-        challenge: str,
-        token: Optional[str] = None,
-    ) -> str:
+    def handle_challenge(challenge: str) -> dict:
         """
-        处理飞书URL验证请求.
+        Handle Lark URL verification challenge.
 
-        飞书配置事件订阅时会发送URL验证请求，
-        需要返回解密后的challenge值。
+        When configuring the callback URL, Lark sends a POST request
+        with a `challenge` field. The server must echo it back.
 
         Args:
-            challenge: 挑战码
-            token: 验证Token
+            challenge: The challenge string from Lark
 
         Returns:
-            str: challenge值
+            dict: Response with challenge echoed back
         """
-        token = token or settings.lark.verification_token
-        if token:
-            logger.info("URL verification successful")
-        return challenge
+        logger.info("Lark challenge verification successful")
+        return {"challenge": challenge}
 
 
 def verify_lark_request(
+    signature: str,
     timestamp: str,
     nonce: str,
-    body: str,
-    signature: str,
+    body: str = "",
 ) -> bool:
     """
-    便捷函数：验证飞书请求.
+    Convenience function: verify Lark request.
 
     Args:
-        timestamp: 请求时间戳
-        nonce: 请求随机数
-        body: 请求体字符串
-        signature: 请求签名
+        signature: Request signature
+        timestamp: Request timestamp
+        nonce: Random nonce
+        body: Raw request body
 
     Returns:
-        bool: 是否验证通过
+        bool: Whether verification passed
     """
     return LarkSignatureVerifier.verify_request(
+        signature=signature,
         timestamp=timestamp,
         nonce=nonce,
         body=body,
-        signature=signature,
     )

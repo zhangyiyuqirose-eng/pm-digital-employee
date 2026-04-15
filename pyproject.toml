@@ -1,0 +1,5 @@
+[project]
+name = "pm-digital-employee"
+version = "1.0.0"
+description = "项目经理数字员工系统 - 飞书版"
+requires-python = ">=3.11"

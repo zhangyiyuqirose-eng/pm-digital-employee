@@ -1,8 +1,9 @@
 """
 PM Digital Employee - Domain Enums Module
-项目经理数字员工系统 - 领域枚举定义模块
+PM Digital Employee System - Domain enum definitions
 
-定义所有业务枚举类型，确保类型安全和代码可读性。
+Defines all business enum types for type safety and code readability.
+Lark as the primary user interaction entrypoint.
 """
 
 from enum import Enum, IntEnum
@@ -293,11 +294,11 @@ class AuditAction(str, Enum):
 
 
 class IntegrationSystem(str, Enum):
-    """集成系统枚举."""
+    """Integration system enums."""
 
-    LARK = "lark"  # 飞书
-    PROJECT_SYSTEM = "project_system"  # 项目管理系统
-    FINANCE_SYSTEM = "finance_system"  # 财务系统
-    DEVOPS_SYSTEM = "devops_system"  # DevOps系统
-    DEFECT_SYSTEM = "defect_system"  # 缺陷系统
-    OA_SYSTEM = "oa_system"  # OA审批系统
+    LARK = "lark"  # Lark/Feishu
+    PROJECT_SYSTEM = "project_system"  # Project Management System
+    FINANCE_SYSTEM = "finance_system"  # Finance System
+    DEVOPS_SYSTEM = "devops_system"  # DevOps System
+    DEFECT_SYSTEM = "defect_system"  # Defect System
+    OA_SYSTEM = "oa_system"  # OA Approval System

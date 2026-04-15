@@ -158,63 +158,75 @@ class VectorRetriever:
         min_score: float,
     ) -> List[RetrievedDocument]:
         """
-        稠密检索（向量检索）.
+        Dense search (vector search).
 
-        Args:
-            query_embedding: 查询向量
-            access_filter: 权限过滤条件
-            top_k: 返回数量
-            min_score: 最小相似度
-
-        Returns:
-            List[RetrievedDocument]: 检索结果
+        Uses pgvector's <=> operator for cosine distance calculation on the
+        database side instead of loading all embeddings into Python memory.
         """
         if not self._session:
             return []
 
-        # 构建查询
-        query = select(KnowledgeDocument).where(
-            KnowledgeDocument.embedding.isnot(None),
-        )
+        from sqlalchemy import text
 
-        # 应用权限过滤
-        query = self._apply_access_filter(query, access_filter)
+        # Build SQL with pgvector cosine distance operator (<=>)
+        # 1 - (embedding <=> query_embedding) gives cosine similarity
+        embedding_str = f"[{','.join(str(v) for v in query_embedding)}]"
 
-        # 执行查询
-        result = await self._session.execute(query)
-        docs = result.scalars().all()
+        sql = text(f"""
+            SELECT id, document_id, content, metadata_,
+                   1 - (embedding <=> :embedding) AS similarity
+            FROM knowledge_documents
+            WHERE embedding IS NOT NULL
+              AND 1 - (embedding <=> :embedding) >= :min_score
+            ORDER BY embedding <=> :embedding
+            LIMIT :top_k
+        """)
 
-        # 计算相似度
-        scored_docs: List[Tuple[KnowledgeDocument, float]] = []
+        # Apply access filter conditions
+        conditions = []
+        params = {
+            "embedding": embedding_str,
+            "min_score": min_score,
+            "top_k": top_k,
+        }
 
-        for doc in docs:
-            if doc.embedding:
-                similarity = self._cosine_similarity(
-                    query_embedding,
-                    doc.embedding,
-                )
+        if access_filter.get("project_ids"):
+            conditions.append("project_id = ANY(:project_ids)")
+            params["project_ids"] = [str(pid) for pid in access_filter["project_ids"]]
 
-                if similarity >= min_score:
-                    scored_docs.append((doc, similarity))
+        if access_filter.get("scope_types"):
+            conditions.append("scope_type = ANY(:scope_types)")
+            params["scope_types"] = [st.value if hasattr(st, "value") else st for st in access_filter["scope_types"]]
 
-        # 排序并取top_k
-        scored_docs.sort(key=lambda x: x[1], reverse=True)
-        top_docs = scored_docs[:top_k]
+        if access_filter.get("is_public") is True:
+            conditions.append("is_public = true")
 
-        # 转换为RetrievedDocument
+        if conditions:
+            sql_text = str(sql)
+            # Insert WHERE conditions before ORDER BY
+            where_clause = " AND ".join(conditions)
+            sql_text = sql_text.replace(
+                "WHERE embedding IS NOT NULL",
+                f"WHERE embedding IS NOT NULL AND {where_clause}",
+            )
+            sql = text(sql_text)
+
+        result = await self._session.execute(sql, params)
+        rows = result.fetchall()
+
         return [
             RetrievedDocument(
-                chunk_id=doc.id,
-                document_id=doc.document_id,
-                document_name=doc.metadata_.get("name", "Unknown"),
-                content=doc.content,
-                score=score,
-                metadata=doc.metadata_ or {},
-                source_type=doc.metadata_.get("source_type"),
-                source_url=doc.metadata_.get("source_url"),
-                page_number=doc.metadata_.get("page_number"),
+                chunk_id=row.id,
+                document_id=row.document_id,
+                document_name=row.metadata_.get("name", "Unknown") if row.metadata_ else "Unknown",
+                content=row.content,
+                score=float(row.similarity),
+                metadata=row.metadata_ or {},
+                source_type=(row.metadata_ or {}).get("source_type"),
+                source_url=(row.metadata_ or {}).get("source_url"),
+                page_number=(row.metadata_ or {}).get("page_number"),
             )
-            for doc, score in top_docs
+            for row in rows
         ]
 
     async def _sparse_search(

@@ -7,9 +7,11 @@ PM Digital Employee - LLM Gateway
 
 import asyncio
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
+from sqlalchemy import delete, text
 
 from app.ai.schemas import (
     ChatMessage,
@@ -45,6 +47,18 @@ class LLMGateway:
         self._http_client: Optional[httpx.AsyncClient] = None
         self._provider_configs = self._load_provider_configs()
         self._usage_stats: Dict[str, List[LLMUsageRecord]] = {}
+        self._background_tasks: set[asyncio.Task] = set()
+
+    def _fire_and_forget(self, coro) -> None:
+        """
+        Schedule a background task with GC protection.
+
+        Stores the task reference to prevent garbage collection,
+        then discards it on completion.
+        """
+        task = asyncio.create_task(coro)
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
     def _load_provider_configs(self) -> Dict[LLMProvider, Dict[str, Any]]:
         """
@@ -66,12 +80,12 @@ class LLMGateway:
                 "default_model": settings.llm.azure_deployment,
             },
             LLMProvider.ZHIPU: {
-                "api_base": "https://open.bigmodel.cn/api/paas/v3",
+                "api_base": "https://open.bigmodel.cn/api/paas",
                 "api_key": settings.llm.zhipu_api_key,
                 "default_model": "glm-4",
             },
             LLMProvider.QWEN: {
-                "api_base": "https://dashscope.aliyuncs.com/api/v1",
+                "api_base": "https://dashscope.aliyuncs.com",
                 "api_key": settings.llm.qwen_api_key,
                 "default_model": "qwen-max",
             },
@@ -157,16 +171,19 @@ class LLMGateway:
             latency_ms = int((time.time() - start_time) * 1000)
             response.latency_ms = latency_ms
 
-            # 记录使用日志
-            self._log_usage(
-                trace_id=kwargs.get("trace_id", ""),
-                user_id=kwargs.get("user_id", ""),
-                model=response.model,
-                prompt_tokens=response.prompt_tokens,
-                completion_tokens=response.completion_tokens,
-                latency_ms=latency_ms,
-                skill_name=kwargs.get("skill_name"),
-                success=True,
+            # Record usage (async, fire-and-forget)
+            self._fire_and_forget(
+                self._persist_usage(
+                    trace_id=kwargs.get("trace_id", ""),
+                    user_id=kwargs.get("user_id", ""),
+                    model=response.model,
+                    provider=provider.value if hasattr(provider, 'value') else str(provider),
+                    prompt_tokens=response.prompt_tokens,
+                    completion_tokens=response.completion_tokens,
+                    latency_ms=latency_ms,
+                    skill_name=kwargs.get("skill_name"),
+                    success=True,
+                ),
             )
 
             logger.info(
@@ -182,14 +199,16 @@ class LLMGateway:
         except Exception as e:
             latency_ms = int((time.time() - start_time) * 1000)
 
-            self._log_usage(
-                trace_id=kwargs.get("trace_id", ""),
-                user_id=kwargs.get("user_id", ""),
-                model=request.model,
-                latency_ms=latency_ms,
-                skill_name=kwargs.get("skill_name"),
-                success=False,
-                error_message=str(e),
+            self._fire_and_forget(
+                self._persist_usage(
+                    trace_id=kwargs.get("trace_id", ""),
+                    user_id=kwargs.get("user_id", ""),
+                    model=request.model,
+                    latency_ms=latency_ms,
+                    skill_name=kwargs.get("skill_name"),
+                    success=False,
+                    error_message=str(e),
+                ),
             )
 
             logger.error(
@@ -454,20 +473,11 @@ class LLMGateway:
         temperature: float,
     ) -> LLMResponse:
         """
-        调用智谱AI API.
+        Call Zhipu AI API (OpenAI-compatible format).
 
-        Args:
-            client: HTTP客户端
-            config: 配置
-            messages: 消息列表
-            model: 模型名称
-            max_tokens: 最大Token
-            temperature: 温度
-
-        Returns:
-            LLMResponse: 响应
+        Uses /v4/chat/completions endpoint with standard OpenAI message format.
         """
-        url = f"{config['api_base']}/model-api/{model}/inference"
+        url = f"{config['api_base']}/v4/chat/completions"
         headers = {
             "Authorization": f"Bearer {config['api_key']}",
             "Content-Type": "application/json",
@@ -482,17 +492,18 @@ class LLMGateway:
         response = await client.post(url, headers=headers, json=payload)
         data = response.json()
 
-        if data.get("code") != 200:
+        # OpenAI-compatible response format
+        if "error" in data:
             raise LLMError(
                 error_code=ErrorCode.LLM_ERROR,
-                message=f"智谱API错误: {data.get('msg', 'Unknown')}",
+                message=f"Zhipu API error: {data['error'].get('message', 'Unknown')}",
             )
 
-        choice = data["data"]["choices"][0]
-        usage = data["data"].get("usage", {})
+        choice = data["choices"][0]
+        usage = data.get("usage", {})
 
         return LLMResponse(
-            content=choice["content"],
+            content=choice["message"]["content"],
             model=model,
             prompt_tokens=usage.get("prompt_tokens", 0),
             completion_tokens=usage.get("completion_tokens", 0),
@@ -523,105 +534,202 @@ class LLMGateway:
         Returns:
             LLMResponse: 响应
         """
-        url = f"{config['api_base']}/services/aigc/text-generation/generation"
+        url = f"{config['api_base']}/compatible-mode/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {config['api_key']}",
             "Content-Type": "application/json",
         }
 
-        # 转换消息格式
-        input_text = ""
-        for msg in messages:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            if role == "system":
-                input_text += f"系统: {content}\n"
-            elif role == "user":
-                input_text += f"用户: {content}\n"
-            elif role == "assistant":
-                input_text += f"助手: {content}\n"
-
+        # Use standard OpenAI-compatible message format
         payload = {
             "model": model,
-            "input": {"prompt": input_text},
-            "parameters": {
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-            },
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
         }
 
         response = await client.post(url, headers=headers, json=payload)
         data = response.json()
 
-        if data.get("code"):
+        # OpenAI-compatible response format
+        if "error" in data:
             raise LLMError(
                 error_code=ErrorCode.LLM_ERROR,
-                message=f"通义千问API错误: {data.get('message', 'Unknown')}",
+                message=f"Qwen API error: {data['error'].get('message', 'Unknown')}",
             )
 
-        output = data.get("output", {})
+        choice = data["choices"][0]
         usage = data.get("usage", {})
 
         return LLMResponse(
-            content=output.get("text", ""),
+            content=choice["message"]["content"],
             model=model,
-            prompt_tokens=usage.get("input_tokens", 0),
-            completion_tokens=usage.get("output_tokens", 0),
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
             total_tokens=usage.get("total_tokens", 0),
-            finish_reason=output.get("finish_reason", "stop"),
+            finish_reason=choice.get("finish_reason", "stop"),
         )
 
     async def get_embedding(
         self,
         text: str,
-        model: str = "text-embedding-ada-002",
+        model: Optional[str] = None,
         provider: LLMProvider = LLMProvider.OPENAI,
     ) -> List[float]:
         """
-        获取文本Embedding.
+        Get text embedding with multi-provider support.
 
         Args:
-            text: 输入文本
-            model: 模型名称
-            provider: 提供商
+            text: Input text
+            model: Model name (auto-selected per provider if not specified)
+            provider: Provider
 
         Returns:
-            List[float]: Embedding向量
+            List[float]: Embedding vector
         """
         config = self._provider_configs.get(provider)
-        if not config:
+        if not config or not config.get("api_key"):
             raise LLMError(
                 error_code=ErrorCode.LLM_ERROR,
-                message=f"提供商 {provider} 未配置",
+                message=f"Provider {provider} not configured",
             )
 
         client = await self._get_client()
 
         if provider == LLMProvider.OPENAI:
-            url = f"{config['api_base']}/embeddings"
-            headers = {
-                "Authorization": f"Bearer {config['api_key']}",
-                "Content-Type": "application/json",
-            }
-            payload = {
-                "model": model,
-                "input": text,
-            }
+            return await self._call_openai_embedding(client, config, text, model or "text-embedding-ada-002")
+        elif provider == LLMProvider.ZHIPU:
+            return await self._call_zhipu_embedding(client, config, text, model or "embedding-3")
+        elif provider == LLMProvider.QWEN:
+            return await self._call_qwen_embedding(client, config, text, model or "text-embedding-v3")
+        else:
+            raise LLMError(
+                error_code=ErrorCode.LLM_ERROR,
+                message=f"Provider {provider} does not support Embedding",
+            )
 
-            response = await client.post(url, headers=headers, json=payload)
-            data = response.json()
+    async def _call_openai_embedding(
+        self,
+        client: httpx.AsyncClient,
+        config: Dict[str, Any],
+        text: str,
+        model: str,
+    ) -> List[float]:
+        """Call OpenAI embedding API."""
+        url = f"{config['api_base']}/embeddings"
+        headers = {
+            "Authorization": f"Bearer {config['api_key']}",
+            "Content-Type": "application/json",
+        }
+        payload = {"model": model, "input": text}
 
-            if response.status_code != 200:
-                raise LLMError(
-                    error_code=ErrorCode.LLM_ERROR,
-                    message="Embedding请求失败",
+        response = await client.post(url, headers=headers, json=payload)
+        data = response.json()
+
+        if response.status_code != 200:
+            raise LLMError(
+                error_code=ErrorCode.LLM_ERROR,
+                message=f"OpenAI embedding error: {data.get('error', {}).get('message', 'Unknown')}",
+            )
+
+        return data["data"][0]["embedding"]
+
+    async def _call_zhipu_embedding(
+        self,
+        client: httpx.AsyncClient,
+        config: Dict[str, Any],
+        text: str,
+        model: str,
+    ) -> List[float]:
+        """Call Zhipu embedding API (OpenAI-compatible format)."""
+        url = f"{config['api_base']}/v4/embeddings"
+        headers = {
+            "Authorization": f"Bearer {config['api_key']}",
+            "Content-Type": "application/json",
+        }
+        payload = {"model": model, "input": text}
+
+        response = await client.post(url, headers=headers, json=payload)
+        data = response.json()
+
+        if "error" in data:
+            raise LLMError(
+                error_code=ErrorCode.LLM_ERROR,
+                message=f"Zhipu embedding error: {data['error'].get('message', 'Unknown')}",
+            )
+
+        return data["data"][0]["embedding"]
+
+    async def _call_qwen_embedding(
+        self,
+        client: httpx.AsyncClient,
+        config: Dict[str, Any],
+        text: str,
+        model: str,
+    ) -> List[float]:
+        """Call Qwen embedding API (OpenAI-compatible format)."""
+        url = f"{config['api_base']}/compatible-mode/v1/embeddings"
+        headers = {
+            "Authorization": f"Bearer {config['api_key']}",
+            "Content-Type": "application/json",
+        }
+        payload = {"model": model, "input": text}
+
+        response = await client.post(url, headers=headers, json=payload)
+        data = response.json()
+
+        if "error" in data:
+            raise LLMError(
+                error_code=ErrorCode.LLM_ERROR,
+                message=f"Qwen embedding error: {data['error'].get('message', 'Unknown')}",
+            )
+
+        return data["data"][0]["embedding"]
+
+    async def get_embedding_with_fallback(
+        self,
+        text: str,
+        model: Optional[str] = None,
+        fallback_providers: Optional[List[LLMProvider]] = None,
+    ) -> List[float]:
+        """
+        Get embedding with provider fallback.
+
+        Tries providers in order until one succeeds.
+
+        Args:
+            text: Input text
+            model: Model name
+            fallback_providers: Ordered list of providers to try
+
+        Returns:
+            List[float]: Embedding vector from first successful provider
+
+        Raises:
+            LLMError: All providers failed
+        """
+        if fallback_providers is None:
+            fallback_providers = [
+                LLMProvider.OPENAI,
+                LLMProvider.ZHIPU,
+                LLMProvider.QWEN,
+            ]
+
+        errors: List[str] = []
+        for provider in fallback_providers:
+            try:
+                return await self.get_embedding(text, model, provider)
+            except Exception as e:
+                errors.append(f"{provider.value}: {str(e)}")
+                logger.warning(
+                    "Embedding provider failed, trying next",
+                    provider=provider.value,
+                    error=str(e),
                 )
-
-            return data["data"][0]["embedding"]
 
         raise LLMError(
             error_code=ErrorCode.LLM_ERROR,
-            message=f"提供商 {provider} 暂不支持Embedding",
+            message=f"All embedding providers failed: {'; '.join(errors)}",
         )
 
     def _build_messages(
@@ -666,7 +774,103 @@ class LLMGateway:
         config = self._provider_configs.get(provider, {})
         return config.get("default_model", "gpt-4")
 
-    def _log_usage(
+    async def _persist_usage(
+        self,
+        trace_id: str,
+        user_id: str,
+        model: str,
+        provider: Optional[str] = None,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        latency_ms: int = 0,
+        skill_name: Optional[str] = None,
+        success: bool = True,
+        error_message: Optional[str] = None,
+    ) -> None:
+        """
+        Persist LLM usage log to database.
+
+        Falls back to in-memory storage if database is unavailable.
+        """
+        try:
+            from app.domain.models.llm_usage_log import LLMUsageLog
+            from app.db.session import get_async_session_factory
+
+            session_factory = get_async_session_factory()
+            if not session_factory:
+                logger.debug("No DB session factory, falling back to in-memory usage stats")
+                self._log_usage_in_memory(
+                    trace_id, user_id, model, prompt_tokens,
+                    completion_tokens, latency_ms, skill_name,
+                    success, error_message,
+                )
+                return
+
+            async with session_factory() as session:
+                log = LLMUsageLog(
+                    trace_id=trace_id,
+                    user_id=user_id if user_id else None,
+                    model=model,
+                    provider=provider,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=prompt_tokens + completion_tokens,
+                    latency_ms=latency_ms,
+                    skill_name=skill_name,
+                    success=success,
+                    error_message=error_message[:1024] if error_message else None,
+                )
+                session.add(log)
+                await session.commit()
+        except Exception:
+            # Fallback to in-memory on any DB error
+            self._log_usage_in_memory(
+                trace_id, user_id, model, prompt_tokens,
+                completion_tokens, latency_ms, skill_name,
+                success, error_message,
+            )
+
+    async def _cleanup_old_logs(self, retention_days: int = 30) -> int:
+        """
+        Delete usage logs older than retention period.
+
+        Should be called by a scheduled task (e.g., Celery periodic task),
+        not exposed to user-facing endpoints.
+
+        Args:
+            retention_days: Number of days to retain logs
+
+        Returns:
+            int: Number of deleted records
+        """
+        try:
+            from app.domain.models.llm_usage_log import LLMUsageLog
+            from app.db.session import get_async_session_factory
+
+            session_factory = get_async_session_factory()
+            if not session_factory:
+                return 0
+
+            cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+
+            async with session_factory() as session:
+                result = await session.execute(
+                    delete(LLMUsageLog).where(LLMUsageLog.created_at < cutoff),
+                )
+                await session.commit()
+                deleted = result.rowcount or 0
+                if deleted:
+                    logger.info(
+                        "Cleaned up old LLM usage logs",
+                        deleted_count=deleted,
+                        retention_days=retention_days,
+                    )
+                return deleted
+        except Exception as e:
+            logger.warning("Failed to cleanup old usage logs", error=str(e))
+            return 0
+
+    def _log_usage_in_memory(
         self,
         trace_id: str,
         user_id: str,
@@ -679,18 +883,7 @@ class LLMGateway:
         error_message: Optional[str] = None,
     ) -> None:
         """
-        记录使用日志.
-
-        Args:
-            trace_id: 追踪ID
-            user_id: 用户ID
-            model: 模型名称
-            prompt_tokens: 输入Token
-            completion_tokens: 输出Token
-            latency_ms: 延迟
-            skill_name: Skill名称
-            success: 是否成功
-            error_message: 错误信息
+        Record usage to in-memory stats (fallback).
         """
         record = LLMUsageRecord(
             trace_id=trace_id,
@@ -705,13 +898,79 @@ class LLMGateway:
             error_message=error_message,
         )
 
-        # 按用户记录
         if user_id not in self._usage_stats:
             self._usage_stats[user_id] = []
         self._usage_stats[user_id].append(record)
 
+    async def generate_with_fallback(
+        self,
+        prompt: str,
+        model: Optional[str] = None,
+        max_tokens: int = 2000,
+        temperature: float = 0.7,
+        system_prompt: Optional[str] = None,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
+        fallback_providers: Optional[List[LLMProvider]] = None,
+        **kwargs,
+    ) -> LLMResponse:
+        """
+        Generate text with provider fallback.
 
-# 全局LLM网关实例
+        Tries providers in order until one succeeds. Default fallback order:
+        OPENAI -> ZHIPU -> QWEN.
+
+        Args:
+            prompt: User prompt
+            model: Model name
+            max_tokens: Max output tokens
+            temperature: Temperature
+            system_prompt: System prompt
+            conversation_history: Conversation history
+            fallback_providers: Ordered list of providers to try
+            **kwargs: Additional params
+
+        Returns:
+            LLMResponse: First successful response
+
+        Raises:
+            LLMError: All providers failed
+        """
+        if fallback_providers is None:
+            fallback_providers = [
+                LLMProvider.OPENAI,
+                LLMProvider.ZHIPU,
+                LLMProvider.QWEN,
+            ]
+
+        errors: List[str] = []
+        for provider in fallback_providers:
+            try:
+                return await self.generate(
+                    prompt=prompt,
+                    model=model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    system_prompt=system_prompt,
+                    conversation_history=conversation_history,
+                    provider=provider,
+                    **kwargs,
+                )
+            except Exception as e:
+                errors.append(f"{provider.value}: {str(e)}")
+                logger.warning(
+                    "Provider failed, trying next",
+                    provider=provider.value,
+                    error=str(e),
+                )
+
+        # All providers failed
+        raise LLMError(
+            error_code=ErrorCode.LLM_ERROR,
+            message=f"All providers failed: {'; '.join(errors)}",
+        )
+
+
+# Global LLM gateway instance
 _llm_gateway: Optional[LLMGateway] = None
 
 

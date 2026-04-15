@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict
 
-from sqlalchemy import Column, DateTime, String
+from sqlalchemy import Column, DateTime, String, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, declared_attr
 
@@ -25,3 +25,9 @@ class AuditMixin:
     )
     created_by = Column(String(50), nullable=True)
     updated_by = Column(String(50), nullable=True)
+
+
+class ProjectScopedMixin:
+    """项目范围混入类."""
+
+    project_id = Column(UUID(as_uuid=True), ForeignKey('projects.id'), nullable=False)

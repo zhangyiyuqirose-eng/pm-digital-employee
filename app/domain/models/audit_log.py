@@ -11,11 +11,11 @@ from sqlalchemy import DateTime, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.domain.base import Base
+from app.domain.base import Base, AuditMixin
 from app.domain.enums import AuditAction
 
 
-class AuditLog(Base):
+class AuditLog(Base, AuditMixin):
     """
     审计日志实体.
 

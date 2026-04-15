@@ -1,8 +1,8 @@
 # PM Digital Employee - Docker Compose Configuration
-# 项目经理数字员工系统 - 一键启动完整服务栈
+# PM Digital Employee System - One-click full service stack
 
 services:
-  # PostgreSQL数据库服务（含pgvector扩展）
+  # PostgreSQL database service (with pgvector extension)
   postgres:
     image: pgvector/pgvector:pg16
     container_name: pm_postgres
@@ -13,7 +13,7 @@ services:
       POSTGRES_DB: pm_digital_employee
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init_pgvector.sql:/docker-entrypoint-initdb.d/01-init_pgvector.sql:ro
@@ -26,7 +26,7 @@ services:
     networks:
       - pm_network
 
-  # Redis缓存服务
+  # Redis cache service
   redis:
     image: redis:7.4-alpine
     container_name: pm_redis
@@ -38,7 +38,7 @@ services:
       --maxmemory-policy allkeys-lru
       --appendonly yes
     ports:
-      - "6379:6379"
+      - "16379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -49,7 +49,7 @@ services:
     networks:
       - pm_network
 
-  # RabbitMQ消息队列服务
+  # RabbitMQ message queue service
   rabbitmq:
     image: rabbitmq:4.0-management-alpine
     container_name: pm_rabbitmq
@@ -58,8 +58,8 @@ services:
       RABBITMQ_DEFAULT_USER: pm_rabbitmq
       RABBITMQ_DEFAULT_PASS: rabbitmq_123
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "15672:5672"
+      - "25672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -71,7 +71,7 @@ services:
     networks:
       - pm_network
 
-  # FastAPI应用服务
+  # FastAPI application service
   app:
     build:
       context: .
@@ -88,12 +88,14 @@ services:
       REDIS_URL: redis://:redis_123@redis:6379/0
       CELERY_BROKER_URL: pyamqp://pm_rabbitmq:rabbitmq_123@rabbitmq:5672//
       CELERY_RESULT_BACKEND: redis://:redis_123@redis:6379/1
-      LARK_APP_ID: cli_dev_mock
-      LARK_APP_SECRET: dev_mock_secret
-      LLM_PROVIDER: mock
+      LARK_APP_ID: ${LARK_APP_ID:-your_app_id}
+      LARK_APP_SECRET: ${LARK_APP_SECRET:-your_app_secret}
+      LARK_ENCRYPT_KEY: ${LARK_ENCRYPT_KEY:-your_encrypt_key}
+      LARK_VERIFICATION_TOKEN: ${LARK_VERIFICATION_TOKEN:-your_verification_token}
+      LARK_API_DOMAIN: https://open.feishu.cn
       LOG_LEVEL: INFO
     ports:
-      - "8000:8000"
+      - "28000:8000"
     volumes:
       - ./app:/app/app:ro
       - ./prompts:/app/prompts:ro
@@ -113,7 +115,7 @@ services:
     networks:
       - pm_network
 
-  # Celery Worker服务
+  # Celery Worker service
   celery_worker:
     build:
       context: .
@@ -130,7 +132,10 @@ services:
       REDIS_URL: redis://:redis_123@redis:6379/0
       CELERY_BROKER_URL: pyamqp://pm_rabbitmq:rabbitmq_123@rabbitmq:5672//
       CELERY_RESULT_BACKEND: redis://:redis_123@redis:6379/1
-      LLM_PROVIDER: mock
+      LARK_APP_ID: ${LARK_APP_ID:-your_app_id}
+      LARK_APP_SECRET: ${LARK_APP_SECRET:-your_app_secret}
+      LARK_ENCRYPT_KEY: ${LARK_ENCRYPT_KEY:-your_encrypt_key}
+      LARK_VERIFICATION_TOKEN: ${LARK_VERIFICATION_TOKEN:-your_verification_token}
       LOG_LEVEL: INFO
     volumes:
       - ./prompts:/app/prompts:ro
@@ -141,10 +146,16 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /proc/1/cmdline && grep -q celery /proc/1/cmdline"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - pm_network
 
-# 数据卷定义
+# Volume definitions
 volumes:
   postgres_data:
     name: pm_postgres_data
@@ -153,7 +164,7 @@ volumes:
   rabbitmq_data:
     name: pm_rabbitmq_data
 
-# 网络定义
+# Network definitions
 networks:
   pm_network:
     name: pm_network

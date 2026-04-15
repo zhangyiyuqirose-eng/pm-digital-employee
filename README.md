@@ -2,7 +2,9 @@
 
 ## 项目简介
 
-项目经理数字员工系统是一个基于飞书的项目管理智能助手，服务于国有大型银行科技子公司项目管理部。通过自然语言交互，帮助项目经理完成日常事务性工作，提升工作效率。
+项目经理数字员工系统是一个基于**飞书**的项目管理智能助手，服务于国有大型银行科技子公司项目管理部。通过自然语言交互，帮助项目经理完成日常事务性工作，提升工作效率。
+
+**飞书作为唯一用户交互入口。**
 
 ## 核心功能
 
@@ -39,7 +41,7 @@
 ├─────────────────────────────────────────────────────────────────┤
 │ 7. Skill插件层   │ 10个核心Skill，BaseSkill规范，manifest      │
 ├─────────────────────────────────────────────────────────────────┤
-│ 8. 集成适配层    │ 项目管理、财务、DevOps、OA、飞书适配器       │
+│ 8. 集成适配层    │ 项目管理、财务、DevOps、OA、飞书适配器      │
 ├─────────────────────────────────────────────────────────────────┤
 │ 9. 数据层        │ PostgreSQL、Redis、pgvector、Celery         │
 └─────────────────────────────────────────────────────────────────┘
@@ -56,6 +58,7 @@
 - **数据库**: PostgreSQL（含pgvector）
 - **测试**: pytest + pytest-asyncio
 - **代码质量**: ruff + black + mypy
+- **交互入口**: 飞书（Feishu）
 
 ## 快速开始
 
@@ -117,7 +120,7 @@ pm_digital_employee/
 │   ├── skills/                 # Skill插件
 │   ├── ai/                     # AI能力层
 │   ├── rag/                    # RAG检索
-│   ├── integrations/           # 第三方集成
+│   ├── integrations/           # 第三方集成（含飞书）
 │   ├── security/               # 安全模块
 │   ├── tasks/                  # 异步任务
 │   └── main.py                 # 入口文件
@@ -136,16 +139,19 @@ pm_digital_employee/
 - `APP_ENV`: 运行环境（development/staging/production）
 - `DATABASE_URL`: PostgreSQL连接串
 - `REDIS_URL`: Redis连接串
-- `LARK_APP_ID`: 飞书应用ID
-- `LARK_APP_SECRET`: 飞书应用密钥
-- `OPENAI_API_KEY`: OpenAI API密钥
+- `FEISHU_APP_ID`: 飞书应用AppID
+- `FEISHU_APP_SECRET`: 飞书应用AppSecret
+- `FEISHU_ENCRYPT_KEY`: 飞书加密密钥
+- `FEISHU_VERIFICATION_TOKEN`: 飞书验证令牌
+- `LLM_API_KEY`: LLM API密钥
 
 ### 飞书配置
 
-1. 创建飞书企业自建应用
-2. 配置事件订阅，设置Webhook URL
+1. 创建飞书自建应用
+2. 配置回调URL，设置Webhook URL
 3. 开通所需权限（消息、用户信息、群信息等）
 4. 配置IP白名单
+5. 获取AppID、AppSecret、EncryptKey、VerificationToken
 
 ## 安全合规
 
@@ -155,6 +161,7 @@ pm_digital_employee/
 - 输入校验与SQL注入防护
 - 敏感数据脱敏
 - LLM输出安全检查
+- API限流与并发控制
 
 ## 测试
 

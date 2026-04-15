@@ -1,36 +1,27 @@
 """
 PM Digital Employee - API Router
-项目经理数字员工系统 - 全局路由注册
+PM Digital Employee System - Global route registration
+
+Feishu as the primary user interaction entrypoint.
 """
 
 from fastapi import APIRouter
 
 from app.api.health import router as health_router
+from app.api.lark_webhook import router as lark_webhook_router
+from app.api.lark_callback import router as lark_callback_router
 
-# 创建主路由
+# Create main router
 api_router = APIRouter()
 
-# 注册健康检查路由
+# Register health check routes
 api_router.include_router(health_router, tags=["Health"])
 
+# Register Feishu webhook routes
+api_router.include_router(lark_webhook_router, tags=["Feishu Webhook"])
 
-# 飞书Webhook路由（简化版）
-@api_router.post("/lark/webhook/message", tags=["Lark"])
-async def receive_lark_message():
-    """接收飞书消息."""
-    return {"status": "ok"}
-
-
-@api_router.post("/lark/callback/card", tags=["Lark"])
-async def receive_lark_callback():
-    """接收飞书回调."""
-    return {"status": "ok"}
-
-
-@api_router.post("/lark/url_verification", tags=["Lark"])
-async def url_verification(request: dict):
-    """飞书URL校验."""
-    return {"challenge": request.get("challenge", "")}
+# Register Feishu callback routes
+api_router.include_router(lark_callback_router, tags=["Feishu Callback"])
 
 
 # API v1路由

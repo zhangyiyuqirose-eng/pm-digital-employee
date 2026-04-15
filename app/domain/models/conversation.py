@@ -11,14 +11,14 @@ from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.domain.base import ProjectScopedMixin
+from app.domain.base import Base, AuditMixin, ProjectScopedMixin
 from app.domain.enums import ConversationRole, DialogState
 
 if TYPE_CHECKING:
     from app.domain.models.project import Project
 
 
-class ConversationSession(ProjectScopedMixin):
+class ConversationSession(Base, AuditMixin, ProjectScopedMixin):
     """
     对话会话实体.
 
@@ -141,7 +141,7 @@ class ConversationSession(ProjectScopedMixin):
         return f"<ConversationSession(id={self.id}, user_id={self.user_id}, state={self.state})>"
 
 
-class ConversationMessage(Base):
+class ConversationMessage(Base, AuditMixin):
     """
     对话消息实体.
 

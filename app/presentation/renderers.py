@@ -3,6 +3,7 @@ PM Digital Employee - Result Renderers
 项目经理数字员工系统 - 结果渲染器
 
 将Skill执行结果渲染为飞书可展示的格式。
+飞书作为唯一用户交互入口。
 """
 
 from typing import Any, Dict, List, Optional

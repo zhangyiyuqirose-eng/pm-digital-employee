@@ -1,8 +1,9 @@
 """
 PM Digital Employee - Orchestrator
-项目经理数字员工系统 - 主编排引擎
+PM Digital Employee System - Main orchestration engine
 
-协调意图识别、状态流转、Skill执行、结果展示的完整流程。
+Coordinates intent recognition, state transitions, skill execution, and result display.
+Lark as the primary user interaction entrypoint.
 """
 
 import uuid
@@ -35,9 +36,9 @@ logger = get_logger(__name__)
 
 class Orchestrator:
     """
-    主编排引擎.
+    Main orchestration engine.
 
-    协调意图识别、状态流转、Skill执行、结果展示。
+    Coordinates intent recognition, state transitions, skill execution, and result display.
     """
 
     def __init__(
@@ -45,10 +46,10 @@ class Orchestrator:
         session: Optional[AsyncSession] = None,
     ) -> None:
         """
-        初始化编排引擎.
+        Initialize orchestration engine.
 
         Args:
-            session: 数据库会话
+            session: Database session
         """
         self._session = session
         self._context_service = get_context_service()
@@ -57,51 +58,50 @@ class Orchestrator:
         self._skill_registry = get_skill_registry()
         self._lark_service = get_lark_service()
 
-    async def process_message(
+    async def process_lark_message(
         self,
         message: LarkMessage,
-        sender_open_id: str,
+        sender_user_id: str,
         trace_id: Optional[str] = None,
     ) -> SkillExecutionResult:
         """
-        处理飞书消息.
+        Process Lark message.
 
-        完整的消息处理流程：上下文构建 -> 意图识别 -> 状态流转 -> Skill执行。
+        Complete message flow: context building -> intent recognition -> state transition -> skill execution.
 
         Args:
-            message: 飞书消息对象
-            sender_open_id: 发送者OpenID
-            trace_id: 追踪ID
+            message: Lark message object
+            sender_user_id: Sender user ID
+            trace_id: Trace ID
 
         Returns:
-            SkillExecutionResult: 执行结果
+            SkillExecutionResult: Execution result
         """
         trace_id = trace_id or str(uuid.uuid4())
 
         logger.info(
-            "Processing message",
+            "Processing Lark message",
             trace_id=trace_id,
-            message_id=message.message_id,
-            chat_id=message.chat_id,
-            sender_open_id=sender_open_id,
+            msg_id=message.message_id,
+            sender_user_id=sender_user_id,
         )
 
-        # 构建用户上下文
+        # Build user context
         user_context = await self._build_user_context(
-            sender_open_id,
-            message.chat_id,
-            message.chat_type or "p2p",
+            sender_user_id,
+            message.chat_id or "",
+            "p2p",
         )
 
         # 获取或创建对话会话
         dialog_session = await self._dialog_state_machine.get_or_create_session(
-            user_id=sender_open_id,
-            chat_id=message.chat_id,
+            user_id=sender_user_id,
+            chat_id=message.chat_id or "",
             project_id=user_context.current_project,
         )
 
         # 解析消息内容
-        content = self._parse_message_content(message)
+        content = message.content or ""
 
         # 根据当前状态处理
         if dialog_session.state == DialogState.PARAM_COLLECTING:
@@ -143,7 +143,7 @@ class Orchestrator:
 
     async def _build_user_context(
         self,
-        sender_open_id: str,
+        sender_user_id: str,
         chat_id: str,
         chat_type: str,
     ) -> UserContext:
@@ -151,16 +151,16 @@ class Orchestrator:
         构建用户上下文.
 
         Args:
-            sender_open_id: 发送者OpenID
+            sender_user_id: 发送者用户ID
             chat_id: 会话ID
             chat_type: 会话类型
 
         Returns:
             UserContext: 用户上下文
         """
-        # 使用上下文服务构建
+        # Use context service to build
         context = await self._context_service.build_user_context(
-            feishu_user_id=sender_open_id,
+            lark_user_id=sender_user_id,
             chat_id=chat_id,
             chat_type=chat_type,
         )
@@ -711,31 +711,6 @@ class Orchestrator:
         # 无数据库时返回所有
         return None
 
-    def _parse_message_content(
-        self,
-        message: LarkMessage,
-    ) -> str:
-        """
-        解析消息内容.
-
-        Args:
-            message: 飞书消息
-
-        Returns:
-            str: 消息内容
-        """
-        import json
-
-        if message.message_type == "text":
-            try:
-                content_dict = json.loads(message.content or "{}")
-                return content_dict.get("text", "")
-            except json.JSONDecodeError:
-                return message.content or ""
-
-        # 其他类型暂不支持
-        return message.content or ""
-
     def _parse_confirmation(
         self,
         content: str,
@@ -865,30 +840,13 @@ class Orchestrator:
         """
         from app.integrations.lark.schemas import LarkCardBuilder
 
-        card = (
-            LarkCardBuilder()
-            .set_header("请确认您的意图", "blue")
-            .add_markdown(
-                f"检测到您可能想要：**{skill_description}**\n\n"
-                f"置信度: {confidence:.0%}\n\n"
-                f"是否确认执行？",
-            )
-            .add_divider()
-            .add_action(
-                [
-                    LarkCardBuilder.create_button(
-                        "确认执行",
-                        {"action": "confirm", "skill": matched_skill},
-                        "primary",
-                    ),
-                    LarkCardBuilder.create_button(
-                        "取消",
-                        {"action": "cancel"},
-                        "default",
-                    ),
-                ],
-            )
-            .build()
+        card = LarkCardBuilder.create_button_interaction(
+            title="Please confirm your intent",
+            desc=f"Detected you may want: **{matched_skill}**\n{skill_description}\nConfidence: {confidence:.0%}",
+            buttons=[
+                {"text": "Confirm", "key": f"confirm:{matched_skill}"},
+                {"text": "Cancel", "key": "cancel"},
+            ],
         )
 
         return card
@@ -912,32 +870,18 @@ class Orchestrator:
         """
         from app.integrations.lark.schemas import LarkCardBuilder
 
-        # 构建参数展示
-        params_text = "执行参数：\n"
+        # Build parameter display
+        params_text = "Execution parameters:\n"
         for key, value in params.items():
             params_text += f"- {key}: {value}\n"
 
-        card = (
-            LarkCardBuilder()
-            .set_header(f"确认执行：{skill_display_name}", "blue")
-            .add_markdown(params_text)
-            .add_divider()
-            .add_markdown("请确认是否执行此操作？")
-            .add_action(
-                [
-                    LarkCardBuilder.create_button(
-                        "确认执行",
-                        {"action": "confirm", "skill": skill_name},
-                        "primary",
-                    ),
-                    LarkCardBuilder.create_button(
-                        "取消",
-                        {"action": "cancel"},
-                        "default",
-                    ),
-                ],
-            )
-            .build()
+        card = LarkCardBuilder.create_button_interaction(
+            title=f"Confirm execution: {skill_display_name}",
+            desc=params_text,
+            buttons=[
+                {"text": "Confirm", "key": f"confirm:{skill_name}"},
+                {"text": "Cancel", "key": "cancel"},
+            ],
         )
 
         return card

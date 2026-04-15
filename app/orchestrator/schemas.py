@@ -51,7 +51,7 @@ class SkillExecutionContext(BaseModel):
     """Skill执行上下文."""
 
     trace_id: str = Field(..., description="追踪ID")
-    user_id: str = Field(..., description="用户飞书OpenID")
+    user_id: str = Field(..., description="用户飞书ID")
     chat_id: str = Field(..., description="会话ID")
     chat_type: str = Field("p2p", description="会话类型: p2p/group")
     project_id: Optional[uuid.UUID] = Field(None, description="项目ID")

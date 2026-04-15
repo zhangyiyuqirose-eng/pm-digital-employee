@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import and_, select, func
+from sqlalchemy import and_, select, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ErrorCode, ProjectNotFoundError
@@ -63,6 +63,61 @@ class ProjectService:
             raise ProjectNotFoundError(project_id=str(project_id))
 
         return project
+
+    async def get_projects_with_stats(
+        self,
+        user_id: str,
+        skip: int = 0,
+        limit: int = 20,
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """
+        获取项目列表及其统计信息（优化版）.
+
+        使用JOIN和聚合函数一次性获取所有数据，避免N+1查询问题
+        """
+        # 使用子查询来提高性能
+        stmt = (
+            select(
+                Project,
+                func.count(Task.id).filter(Task.project_id == Project.id).label('task_count'),
+                func.sum(case((Task.status == 'completed', 1), else_=0)).filter(Task.project_id == Project.id).label('completed_task_count')
+            )
+            .select_from(Project.__table__.join(Task.__table__, Task.project_id == Project.id, isouter=True))
+            .where(Project.pm_id == user_id)
+            .group_by(Project.id)
+            .offset(skip)
+            .limit(limit)
+        )
+
+        result = await self.session.execute(stmt)
+        project_data = result.fetchall()
+
+        # 构造结果
+        projects = []
+        for row in project_data:
+            project = row.Project
+            project_data = {
+                "id": project.id,
+                "name": project.name,
+                "project_code": project.project_code,
+                "status": project.status.value if project.status else "未知",
+                "progress": project.progress or 0,
+                "start_date": project.start_date,
+                "end_date": project.end_date,
+                "pm_id": project.pm_id,
+                "pm_name": project.pm_name,
+                "description": project.description,
+                "task_count": row.task_count or 0,
+                "completed_task_count": row.completed_task_count or 0
+            }
+            projects.append(project_data)
+
+        # 获取总数
+        count_stmt = select(func.count(Project.id)).where(Project.pm_id == user_id)
+        total_result = await self.session.execute(count_stmt)
+        total_count = total_result.scalar_one()
+
+        return projects, total_count
 
     async def get_project_overview(
         self,
@@ -182,8 +237,10 @@ class ProjectService:
 
         logger.info(
             "Project created",
-            project_id=str(project.id),
-            name=name,
+            extra={
+                "project_id": str(project.id),
+                "name": name,
+            }
         )
 
         return project
@@ -215,8 +272,10 @@ class ProjectService:
 
         logger.info(
             "Project updated",
-            project_id=str(project_id),
-            fields=list(kwargs.keys()),
+            extra={
+                "project_id": str(project_id),
+                "fields": list(kwargs.keys()),
+            }
         )
 
         return project
@@ -234,18 +293,19 @@ class ProjectService:
         Returns:
             int: 新进度值
         """
-        # 查询所有任务
+        # 使用聚合查询一次性计算进度，避免多次查询
         result = await self.session.execute(
-            select(Task).where(Task.project_id == project_id),
+            select(
+                func.avg(Task.progress).label('avg_progress'),
+                func.count(Task.id).label('task_count')
+            ).where(Task.project_id == project_id)
         )
-        tasks = result.scalars().all()
 
-        if not tasks:
-            return 0
-
-        # 计算平均进度
-        total_progress = sum(t.progress or 0 for t in tasks)
-        avg_progress = int(total_progress / len(tasks))
+        row = result.first()
+        if row and row.task_count > 0:
+            avg_progress = int(row.avg_progress or 0)
+        else:
+            avg_progress = 0
 
         # 更新项目进度
         project = await self.get_project(project_id)
@@ -261,29 +321,36 @@ class ProjectService:
         project_id: uuid.UUID,
     ) -> Dict[str, int]:
         """获取任务统计."""
+        # 优化：使用单个聚合查询获取所有统计信息
         result = await self.session.execute(
             select(
-                Task.status,
-                func.count(Task.id),
+                func.count(Task.id).label('total'),
+                func.sum(case((Task.status == 'completed', 1), else_=0)).label('completed'),
+                func.sum(case((Task.status == 'in_progress', 1), else_=0)).label('in_progress'),
+                func.sum(case((Task.status == 'pending', 1), else_=0)).label('pending'),
+                func.sum(case((Task.status == 'blocked', 1), else_=0)).label('blocked'),
             ).where(
                 Task.project_id == project_id,
-            ).group_by(Task.status),
+            )
         )
 
-        stats = {"total": 0}
-        for row in result:
-            status = row[0].value if row[0] else "unknown"
-            count = row[1]
-            stats[status] = count
-            stats["total"] += count
-
-        return stats
+        row = result.first()
+        if row:
+            return {
+                "total": row.total or 0,
+                "completed": row.completed or 0,
+                "in_progress": row.in_progress or 0,
+                "pending": row.pending or 0,
+                "blocked": row.blocked or 0,
+            }
+        return {"total": 0, "completed": 0, "in_progress": 0, "pending": 0, "blocked": 0}
 
     async def _get_milestones(
         self,
         project_id: uuid.UUID,
     ) -> List[Dict]:
         """获取里程碑列表."""
+        # 优化：一次性查询所有里程碑
         result = await self.session.execute(
             select(Milestone).where(
                 Milestone.project_id == project_id,
@@ -306,6 +373,7 @@ class ProjectService:
         project_id: uuid.UUID,
     ) -> List[Dict]:
         """获取风险列表."""
+        # 优化：一次性查询所有风险
         result = await self.session.execute(
             select(ProjectRisk).where(
                 ProjectRisk.project_id == project_id,
@@ -330,24 +398,24 @@ class ProjectService:
         """获取成本摘要."""
         from app.domain.models.cost import ProjectCostBudget, ProjectCostActual
 
-        # 预算
+        # 使用子查询优化，减少数据库往返
         budget_result = await self.session.execute(
-            select(func.sum(ProjectCostBudget.amount)).where(
+            select(func.coalesce(func.sum(ProjectCostBudget.amount), 0)).where(
                 ProjectCostBudget.project_id == project_id,
-            ),
+            )),
         )
-        budget = budget_result.scalar() or 0
+        budget = budget_result.scalar_one()
 
-        # 实际
         actual_result = await self.session.execute(
-            select(func.sum(ProjectCostActual.amount)).where(
+            select(func.coalesce(func.sum(ProjectCostActual.amount), 0)).where(
                 ProjectCostActual.project_id == project_id,
-            ),
+            )),
         )
-        actual = actual_result.scalar() or 0
+        actual = actual_result.scalar_one()
 
         return {
             "budget": float(budget),
             "actual": float(actual),
             "variance": float(budget - actual),
+            "variance_percent": (float(budget - actual) / float(budget) * 100) if budget != 0 else 0
         }

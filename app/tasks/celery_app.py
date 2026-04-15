@@ -9,11 +9,10 @@ from app.core.config import settings
 
 celery_app = Celery(
     "pm_digital_employee",
-    broker=settings.celery.broker_url,
-    backend=settings.celery.result_backend,
+    broker=settings.celery_broker_url,
+    backend=settings.celery_result_backend,
     include=[
         "app.tasks.report_tasks",
-        "app.tasks.event_tasks",
     ],
 )
 
@@ -30,20 +29,6 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=100,
     result_expires=86400,  # 结果保存24小时
-    task_routes={
-        "app.tasks.report_tasks.*": {"queue": "reports"},
-        "app.tasks.event_tasks.*": {"queue": "events"},
-    },
-    beat_schedule={
-        "weekly-report-reminder": {
-            "task": "app.tasks.scheduled_tasks.weekly_report_reminder",
-            "schedule": 60 * 60 * 24 * 7,  # 每周
-        },
-        "risk-monitor": {
-            "task": "app.tasks.scheduled_tasks.risk_monitor_check",
-            "schedule": 60 * 60,  # 每小时
-        },
-    },
 )
 
 

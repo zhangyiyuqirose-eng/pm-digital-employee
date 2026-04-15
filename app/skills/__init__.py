@@ -2,7 +2,7 @@
 PM Digital Employee - Skills Module
 项目经理数字员工系统 - Skill插件模块
 
-包含10个核心Skill实现。
+包含13个核心Skill实现。
 """
 
 from app.orchestrator.skill_manifest import (
@@ -17,6 +17,10 @@ from app.orchestrator.skill_manifest import (
     get_project_query_manifest,
     get_meeting_minutes_manifest,
     get_compliance_review_manifest,
+    # 成本相关Skill
+    get_cost_estimation_manifest,
+    get_cost_monitoring_manifest,
+    get_cost_accounting_manifest,
 )
 
 
@@ -40,5 +44,9 @@ __all__ = [
     "get_project_query_manifest",
     "get_meeting_minutes_manifest",
     "get_compliance_review_manifest",
+    # 成本相关Skill
+    "get_cost_estimation_manifest",
+    "get_cost_monitoring_manifest",
+    "get_cost_accounting_manifest",
     "register_all_skills",
 ]

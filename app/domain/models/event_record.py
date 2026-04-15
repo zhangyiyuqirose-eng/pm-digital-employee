@@ -11,11 +11,11 @@ from sqlalchemy import DateTime, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.domain.base import Base
+from app.domain.base import Base, AuditMixin
 from app.domain.enums import EventStatus, EventType
 
 
-class EventRecord(Base):
+class EventRecord(Base, AuditMixin):
     """
     事件记录实体.
 

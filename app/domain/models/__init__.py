@@ -20,6 +20,7 @@ from app.domain.models.approval import ApprovalWorkflow
 from app.domain.models.audit_log import AuditLog
 from app.domain.models.knowledge import KnowledgeDocument, RetrievalTrace
 from app.domain.models.event_record import EventRecord
+from app.domain.models.llm_usage_log import LLMUsageLog
 
 __all__ = [
     "User",
@@ -41,4 +42,5 @@ __all__ = [
     "KnowledgeDocument",
     "RetrievalTrace",
     "EventRecord",
+    "LLMUsageLog",
 ]

@@ -11,7 +11,7 @@ from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.domain.base import Base
+from app.domain.base import Base, AuditMixin
 from app.domain.enums import KnowledgeScopeType
 
 # pgvector导入
@@ -175,7 +175,7 @@ class KnowledgeDocument(Base):
         return f"<KnowledgeDocument(id={self.id}, title={self.title})>"
 
 
-class RetrievalTrace(Base):
+class RetrievalTrace(Base, AuditMixin):
     """
     RAG检索轨迹实体.
 
