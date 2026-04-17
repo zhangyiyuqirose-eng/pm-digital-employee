@@ -31,6 +31,9 @@ redis>=5.2.0,<6.0.0
 httpx>=0.28.0,<0.29.0
 aiohttp>=3.11.0,<4.0.0
 
+# Feishu SDK (Long Connection)
+lark-oapi>=1.0.0
+
 # LLM Integration
 openai>=1.57.0,<2.0.0
 anthropic>=0.39.0,<1.0.0

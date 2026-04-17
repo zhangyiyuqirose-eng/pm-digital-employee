@@ -11,6 +11,8 @@ from typing import Any, Dict, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.llm_gateway import get_llm_gateway
+from app.ai.schemas import ChatMessage
 from app.core.exceptions import ErrorCode, OrchestratorError, SkillNotFoundError
 from app.core.logging import get_logger
 from app.integrations.lark.schemas import LarkMessage
@@ -31,7 +33,34 @@ from app.services.access_control_service import AccessControlService
 from app.services.audit_service import AuditService
 from app.services.context_service import ContextService, get_context_service
 
-logger = get_logger(__name__)
+logger = get_logger(__name__) 
+
+
+# 通用问答Prompt模板
+GENERAL_QA_PROMPT = """你是一个项目经理数字员工助手，为用户提供项目管理相关的问答服务。
+
+## 角色定位
+- 专业：以项目管理知识体系（PMBOK）为基础，提供专业回答
+- 简洁：回复言简意赅，直接回答问题
+- 友好：语气亲切，保持专业但不生硬
+
+## 回答原则
+1. 如果问题与项目管理相关，提供专业解答
+2. 如果是问候或闲聊，礼貌回应并简要介绍自己能提供的服务
+3. 如果问题超出你的知识范围，诚实说明并建议用户咨询其他渠道
+
+## 可提供服务
+- 项目总览查询：查看项目整体状态
+- 项目周报生成：自动生成周报
+- 任务进度更新：更新任务状态
+- 风险识别与预警：识别项目风险
+- 成本估算/监控/核算：成本管理相关
+- 会议纪要生成：生成结构化纪要
+- WBS自动生成：工作分解结构
+- 项目制度规范答疑：回答制度相关问题
+
+请根据用户输入，提供简洁专业的回复。
+"""  
 
 
 class Orchestrator:
@@ -57,6 +86,7 @@ class Orchestrator:
         self._dialog_state_machine = get_dialog_state_machine()
         self._skill_registry = get_skill_registry()
         self._lark_service = get_lark_service()
+        self._llm_gateway = get_llm_gateway() 
 
     async def process_lark_message(
         self,
@@ -209,8 +239,8 @@ class Orchestrator:
             return self._build_rejection_result(intent_result)
 
         if intent_result.intent_type == IntentType.UNKNOWN:
-            # 未知意图
-            return self._build_unknown_intent_result(content)
+            # 未知意图 - 调用LLM通用问答
+            return await self._build_unknown_intent_result(content)
 
         if intent_result.intent_type in (IntentType.CLARIFICATION, IntentType.AMBIGUOUS):
             # 需要澄清
@@ -765,31 +795,56 @@ class Orchestrator:
             error_message=intent_result.rejection_reason or "请求被拒绝",
         )
 
-    def _build_unknown_intent_result(
+    async def _build_unknown_intent_result(
         self,
         content: str,
     ) -> SkillExecutionResult:
         """
-        构建未知意图结果.
+        构建未知意图结果 - 调用LLM进行通用问答.
 
         Args:
             content: 用户输入
 
         Returns:
-            SkillExecutionResult: 未知意图结果
+            SkillExecutionResult: LLM通用问答结果
         """
-        return SkillExecutionResult(
-            success=False,
-            skill_name="",
-            presentation_type="text",
-            presentation_data={
-                "text": "抱歉，我无法理解您的请求。您可以尝试：\n"
-                "- 查看项目状态\n"
-                "- 生成周报\n"
-                "- 更新任务进度\n"
-                "- 查看风险",
-            },
-        )
+        try:
+            # 调用LLM进行通用问答
+            messages = [
+                ChatMessage(role="system", content=GENERAL_QA_PROMPT),
+                ChatMessage(role="user", content=content),
+            ]
+
+            response = await self._llm_gateway.chat(
+                messages=messages,
+                max_tokens=500,
+                temperature=0.7,
+            )
+
+            answer = response.content or "抱歉，我暂时无法回答这个问题。"
+
+            return SkillExecutionResult(
+                success=True,
+                skill_name="general_qa",
+                presentation_type="text",
+                presentation_data={"text": answer},
+            )
+
+        except Exception as e:
+            logger.error("General QA failed", error=str(e))
+            # LLM调用失败时，返回引导性帮助文本
+            return SkillExecutionResult(
+                success=False,
+                skill_name="",
+                presentation_type="text",
+                presentation_data={
+                    "text": "抱歉，服务暂时不可用。您可以尝试：\n"
+                    "- 项目总览：查看项目整体状态\n"
+                    "- 生成周报：自动生成工作周报\n"
+                    "- 更新任务：更新任务进度\n"
+                    "- 查看风险：识别项目风险",
+                },
+            )
 
     def _build_ambiguous_result(
         self,

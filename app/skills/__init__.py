@@ -27,9 +27,32 @@ from app.orchestrator.skill_manifest import (
 def register_all_skills() -> None:
     """注册所有Skill到Registry."""
     from app.orchestrator.skill_registry import register_skill
+    from app.skills.project_overview_skill import ProjectOverviewSkill
+    from app.skills.weekly_report_skill import WeeklyReportSkill
+    from app.skills.policy_qa_skill import PolicyQASkill, TaskUpdateSkill, RiskAlertSkill, CostMonitorSkill
+    from app.skills.additional_skills import WBSGenerationSkill, ProjectQuerySkill, MeetingMinutesSkill, ComplianceReviewSkill
+    from app.skills.cost_skills import CostEstimationSkill, CostMonitoringSkill, CostAccountingSkill
+
+    # Skill类映射
+    skill_classes = {
+        "project_overview": ProjectOverviewSkill,
+        "weekly_report": WeeklyReportSkill,
+        "policy_qa": PolicyQASkill,
+        "task_update": TaskUpdateSkill,
+        "risk_alert": RiskAlertSkill,
+        "cost_monitor": CostMonitorSkill,
+        "wbs_generation": WBSGenerationSkill,
+        "project_query": ProjectQuerySkill,
+        "meeting_minutes": MeetingMinutesSkill,
+        "compliance_review": ComplianceReviewSkill,
+        "cost_estimation": CostEstimationSkill,
+        "cost_monitoring": CostMonitoringSkill,
+        "cost_accounting": CostAccountingSkill,
+    }
 
     for skill_name, manifest in DEFAULT_SKILL_MANIFESTS.items():
-        register_skill(manifest)
+        skill_class = skill_classes.get(skill_name)
+        register_skill(manifest, skill_class)
 
 
 __all__ = [

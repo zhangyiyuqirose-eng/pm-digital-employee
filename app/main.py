@@ -39,6 +39,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         extra={
             "app_name": settings.app_name,
             "environment": settings.app_env,
+            "lark_configured": settings.lark_configured,
         }
     )
 
@@ -58,11 +59,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
 
+    # 启动飞书WebSocket长连接
+    try:
+        from app.integrations.lark.websocket import start_lark_websocket
+        start_lark_websocket()
+        logger.info("Lark WebSocket client started")
+    except Exception as e:
+        logger.warning(f"Failed to start Lark WebSocket: {e}")
+
     logger.info("Application started successfully")
 
     yield
 
     # 关闭时执行
+    try:
+        from app.integrations.lark.websocket import stop_lark_websocket
+        stop_lark_websocket()
+        logger.info("Lark WebSocket client stopped")
+    except Exception as e:
+        logger.warning(f"Failed to stop Lark WebSocket: {e}")
+
     try:
         from app.db.session import close_db
         await close_db()

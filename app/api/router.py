@@ -8,7 +8,7 @@ Feishu as the primary user interaction entrypoint.
 from fastapi import APIRouter
 
 from app.api.health import router as health_router
-from app.api.lark_webhook import router as lark_webhook_router
+from app.api.lark_webhook import router as lark_webhook_router, internal_router as internal_router
 from app.api.lark_callback import router as lark_callback_router
 
 # Create main router
@@ -19,6 +19,9 @@ api_router.include_router(health_router, tags=["Health"])
 
 # Register Feishu webhook routes
 api_router.include_router(lark_webhook_router, tags=["Feishu Webhook"])
+
+# Register internal routes (for WebSocket callback)
+api_router.include_router(internal_router, tags=["Internal"])
 
 # Register Feishu callback routes
 api_router.include_router(lark_callback_router, tags=["Feishu Callback"])

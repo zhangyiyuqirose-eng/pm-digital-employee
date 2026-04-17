@@ -24,6 +24,9 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/lark/webhook", tags=["Lark Webhook"])
 
+# 内部处理端点（用于WebSocket回调）
+internal_router = APIRouter(prefix="/internal", tags=["Internal"])
+
 # Context variable: current Lark event trace_id
 _current_lark_event_id: ContextVar[Optional[str]] = ContextVar("current_lark_event_id", default=None)
 
@@ -289,3 +292,53 @@ async def _process_message_async(
             )
         except Exception:
             logger.exception("Failed to send error card")
+
+
+# ========== 内部处理端点（用于WebSocket回调） ==========
+
+
+@internal_router.post("/process-message")
+async def internal_process_message(request: Request) -> Dict[str, Any]:
+    """
+    内部消息处理端点（供WebSocket调用）。    无签名验证，直接处理消息。
+    """
+    try:
+        data = await request.json()
+
+        message_data = data.get("message", {})
+        sender_id = data.get("sender_id", "")
+        sender_user_id = data.get("sender_user_id") or sender_id  # Use sender_id as fallback
+        chat_type = data.get("chat_type", "p2p")
+        msg_id = message_data.get("message_id", "")
+        set_trace_id(msg_id)
+
+        logger.info("Internal process message", msg_id=msg_id, sender_id=sender_id, sender_user_id=sender_user_id)
+
+        # 构建 LarkMessage
+        message = LarkMessage(
+            message_id=msg_id,
+            chat_id=message_data.get("chat_id", ""),
+            chat_type=chat_type,
+            message_type=message_data.get("message_type", "text"),
+            content=message_data.get("content", ""),
+            sender_user_id=sender_user_id,
+            sender_open_id=sender_id,
+            create_time=message_data.get("create_time", ""),
+            parent_id=message_data.get("parent_id", ""),
+            root_id=message_data.get("root_id", ""),
+        )
+
+        # 调用消息处理服务
+        from app.services.message_dispatch_service import get_message_dispatch_service
+        dispatch_service = get_message_dispatch_service()
+        result = await dispatch_service.dispatch_lark(
+            message=message,
+            sender_user_id=sender_id,
+        )
+
+        logger.info("Internal process done", msg_id=msg_id, success=result.get("success"))
+        return {"code": 0, "msg": "ok", "result": result}
+
+    except Exception as e:
+        logger.error("Internal process failed", error=str(e))
+        return {"code": -1, "msg": str(e)}

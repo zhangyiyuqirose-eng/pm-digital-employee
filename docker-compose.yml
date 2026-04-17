@@ -76,7 +76,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: development
+      target: production
     container_name: pm_app
     restart: unless-stopped
     environment:
@@ -93,6 +93,19 @@ services:
       LARK_ENCRYPT_KEY: ${LARK_ENCRYPT_KEY:-your_encrypt_key}
       LARK_VERIFICATION_TOKEN: ${LARK_VERIFICATION_TOKEN:-your_verification_token}
       LARK_API_DOMAIN: https://open.feishu.cn
+      # LLM Configuration
+      LLM_PROVIDER: openai
+      LLM_MODEL_NAME: MiniMax-M2.5
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_API_BASE: https://www.finna.com.cn/v1
+      LLM_TEMPERATURE: 0.7
+      LLM_MAX_TOKENS: 4096
+      LLM_INTENT_MODEL: MiniMax-M2.5
+      LLM_INTENT_MAX_TOKENS: 1000
+      LLM_INTENT_TEMPERATURE: 0.3
+      LLM_OPENAI_API_KEY: ${LLM_OPENAI_API_KEY:-app-lvnmd1sdxoQMg7ck64eLskMv}
+      LLM_OPENAI_API_BASE: https://www.finna.com.cn/v1
+      LLM_OPENAI_MODEL: MiniMax-M2.5
       LOG_LEVEL: INFO
     ports:
       - "28000:8000"

@@ -253,10 +253,9 @@ class LarkClient:
         Returns:
             Dict: Response data
         """
-        content = {
-            "type": "template",
-            "data": card,
-        }
+        # 飞书interactive消息的content需要是卡片JSON字符串
+        import json
+        content = json.dumps(card)
         return await self.send_message(
             receive_id=receive_id,
             msg_type="interactive",

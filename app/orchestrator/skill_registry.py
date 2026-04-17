@@ -127,6 +127,18 @@ class SkillRegistry:
             for name, manifest in self._skills.items()
         }
 
+    def get_skill_display_names(self) -> Dict[str, str]:
+        """
+        获取所有Skill显示名称.
+
+        Returns:
+            Dict[str, str]: Skill名称到显示名称的映射
+        """
+        return {
+            name: manifest.display_name
+            for name, manifest in self._skills.items()
+        }
+
     def get_skill_names(self) -> Set[str]:
         """
         获取所有Skill名称集合.

@@ -217,11 +217,7 @@ class LLMGateway:
                 error=str(e),
             )
 
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message=f"LLM生成失败: {str(e)}",
-                model=request.model,
-            )
+            raise LLMError(message=f"LLM生成失败: {str(e)}")
 
     async def chat(
         self,
@@ -263,10 +259,7 @@ class LLMGateway:
             return response
 
         except Exception as e:
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message=f"聊天请求失败: {str(e)}",
-            )
+            raise LLMError(message=f"聊天请求失败: {str(e)}")
 
     async def _call_llm_api(
         self,
@@ -295,9 +288,7 @@ class LLMGateway:
         """
         config = self._provider_configs.get(provider)
         if not config or not config.get("api_key"):
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message=f"提供商 {provider} 未配置",
+            raise LLMError(message=f"提供商 {provider} 未配置",
             )
 
         client = await self._get_client()
@@ -320,9 +311,7 @@ class LLMGateway:
                     client, config, messages, model, max_tokens, temperature,
                 )
             else:
-                raise LLMError(
-                    error_code=ErrorCode.LLM_ERROR,
-                    message=f"不支持的提供商: {provider}",
+                raise LLMError(message=f"不支持的提供商: {provider}",
                 )
 
         except httpx.TimeoutException:
@@ -332,9 +321,7 @@ class LLMGateway:
                     provider, messages, model, max_tokens, temperature,
                     retry_count + 1, **kwargs,
                 )
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message="LLM请求超时",
+            raise LLMError(message="LLM请求超时",
             )
 
         except httpx.RequestError as e:
@@ -344,9 +331,7 @@ class LLMGateway:
                     provider, messages, model, max_tokens, temperature,
                     retry_count + 1, **kwargs,
                 )
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message=f"LLM请求失败: {str(e)}",
+            raise LLMError(message=f"LLM请求失败: {str(e)}",
             )
 
     async def _call_openai(
@@ -382,15 +367,14 @@ class LLMGateway:
             "messages": messages,
             "max_tokens": max_tokens,
             "temperature": temperature,
+            "stream": False,  # 禁用流式响应，确保返回标准JSON
         }
 
         response = await client.post(url, headers=headers, json=payload)
         data = response.json()
 
         if response.status_code != 200:
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message=f"OpenAI API错误: {data.get('error', {}).get('message', 'Unknown')}",
+            raise LLMError(message=f"OpenAI API错误: {data.get('error', {}).get('message', 'Unknown')}",
             )
 
         choice = data["choices"][0]
@@ -446,9 +430,7 @@ class LLMGateway:
         data = response.json()
 
         if response.status_code != 200:
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message=f"Azure API错误: {data.get('error', {}).get('message', 'Unknown')}",
+            raise LLMError(message=f"Azure API错误: {data.get('error', {}).get('message', 'Unknown')}",
             )
 
         choice = data["choices"][0]
@@ -494,9 +476,7 @@ class LLMGateway:
 
         # OpenAI-compatible response format
         if "error" in data:
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message=f"Zhipu API error: {data['error'].get('message', 'Unknown')}",
+            raise LLMError(message=f"Zhipu API error: {data['error'].get('message', 'Unknown')}",
             )
 
         choice = data["choices"][0]
@@ -553,9 +533,7 @@ class LLMGateway:
 
         # OpenAI-compatible response format
         if "error" in data:
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message=f"Qwen API error: {data['error'].get('message', 'Unknown')}",
+            raise LLMError(message=f"Qwen API error: {data['error'].get('message', 'Unknown')}",
             )
 
         choice = data["choices"][0]
@@ -589,9 +567,7 @@ class LLMGateway:
         """
         config = self._provider_configs.get(provider)
         if not config or not config.get("api_key"):
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message=f"Provider {provider} not configured",
+            raise LLMError(message=f"Provider {provider} not configured",
             )
 
         client = await self._get_client()
@@ -603,9 +579,7 @@ class LLMGateway:
         elif provider == LLMProvider.QWEN:
             return await self._call_qwen_embedding(client, config, text, model or "text-embedding-v3")
         else:
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message=f"Provider {provider} does not support Embedding",
+            raise LLMError(message=f"Provider {provider} does not support Embedding",
             )
 
     async def _call_openai_embedding(
@@ -627,9 +601,7 @@ class LLMGateway:
         data = response.json()
 
         if response.status_code != 200:
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message=f"OpenAI embedding error: {data.get('error', {}).get('message', 'Unknown')}",
+            raise LLMError(message=f"OpenAI embedding error: {data.get('error', {}).get('message', 'Unknown')}",
             )
 
         return data["data"][0]["embedding"]
@@ -653,9 +625,7 @@ class LLMGateway:
         data = response.json()
 
         if "error" in data:
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message=f"Zhipu embedding error: {data['error'].get('message', 'Unknown')}",
+            raise LLMError(message=f"Zhipu embedding error: {data['error'].get('message', 'Unknown')}",
             )
 
         return data["data"][0]["embedding"]
@@ -679,9 +649,7 @@ class LLMGateway:
         data = response.json()
 
         if "error" in data:
-            raise LLMError(
-                error_code=ErrorCode.LLM_ERROR,
-                message=f"Qwen embedding error: {data['error'].get('message', 'Unknown')}",
+            raise LLMError(message=f"Qwen embedding error: {data['error'].get('message', 'Unknown')}",
             )
 
         return data["data"][0]["embedding"]
@@ -727,9 +695,7 @@ class LLMGateway:
                     error=str(e),
                 )
 
-        raise LLMError(
-            error_code=ErrorCode.LLM_ERROR,
-            message=f"All embedding providers failed: {'; '.join(errors)}",
+        raise LLMError(message=f"All embedding providers failed: {'; '.join(errors)}",
         )
 
     def _build_messages(
@@ -964,9 +930,7 @@ class LLMGateway:
                 )
 
         # All providers failed
-        raise LLMError(
-            error_code=ErrorCode.LLM_ERROR,
-            message=f"All providers failed: {'; '.join(errors)}",
+        raise LLMError(message=f"All providers failed: {'; '.join(errors)}",
         )
 
 

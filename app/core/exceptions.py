@@ -27,6 +27,15 @@ class ErrorCode(Enum):
     USER_NOT_FOUND = (600002, "用户不存在")
     SKILL_EXECUTION_FAILED = (600003, "技能执行失败")
     INVALID_DIALOG_STATE = (600004, "无效对话状态")
+    DATA_NOT_FOUND = (600005, "数据不存在")
+    DATABASE_ERROR = (600006, "数据库错误")
+    INTENT_RECOGNITION_ERROR = (600007, "意图识别错误")
+    OUTPUT_PARSE_ERROR = (600008, "输出解析错误")
+    SAFETY_VIOLATION_ERROR = (600009, "安全违规")
+    INDEXING_ERROR = (600010, "索引错误")
+    RAG_ERROR = (600011, "RAG错误")
+    PERMISSION_ERROR = (600012, "权限错误")
+    SKILL_EXECUTION_ERROR = (600013, "技能执行错误")
 
     # Lark相关
     LARK_SIGNATURE_INVALID = (700001, "飞书签名验证失败")
@@ -45,7 +54,6 @@ class ErrorCode(Enum):
 
     # Skill相关
     SKILL_NOT_FOUND = (900001, "技能未找到")
-    SKILL_EXECUTION_ERROR = (900002, "技能执行错误")
 
     # Agent相关
     AGENT_ERROR = (900003, "智能代理错误")
@@ -305,5 +313,208 @@ class SkillAccessDeniedError(APIException):
             error_code=ErrorCode.PERMISSION_DENIED,
             message=f"Access denied to skill {skill_name}",
             details={"skill_name": skill_name},
+            trace_id=trace_id
+        )
+
+
+class DialogSessionError(APIException):
+    """对话会话异常."""
+
+    def __init__(
+        self,
+        message: str = "Dialog session error",
+        session_id: Optional[str] = None,
+        state: Optional[str] = None,
+        trace_id: Optional[str] = None,
+    ) -> None:
+        details = {}
+        if session_id:
+            details["session_id"] = session_id
+        if state:
+            details["state"] = state
+        super().__init__(
+            error_code=ErrorCode.INVALID_DIALOG_STATE,
+            message=message,
+            details=details,
+            trace_id=trace_id
+        )
+
+
+class PromptError(APIException):
+    """Prompt模板异常."""
+
+    def __init__(
+        self,
+        message: str = "Prompt template error",
+        template_name: Optional[str] = None,
+        trace_id: Optional[str] = None,
+    ) -> None:
+        details = {}
+        if template_name:
+            details["template_name"] = template_name
+        super().__init__(
+            error_code=ErrorCode.SYSTEM_ERROR,
+            message=message,
+            details=details,
+            trace_id=trace_id
+        )
+
+
+class OutputParseError(APIException):
+    """输出解析异常."""
+
+    def __init__(
+        self,
+        message: str = "Output parse error",
+        trace_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            error_code=ErrorCode.OUTPUT_PARSE_ERROR,
+            message=message,
+            trace_id=trace_id
+        )
+
+
+class SafetyViolationError(APIException):
+    """安全违规异常."""
+
+    def __init__(
+        self,
+        message: str = "Safety violation",
+        trace_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            error_code=ErrorCode.SAFETY_VIOLATION_ERROR,
+            message=message,
+            trace_id=trace_id
+        )
+
+
+class IntentRecognitionError(APIException):
+    """意图识别异常."""
+
+    def __init__(
+        self,
+        message: str = "Intent recognition error",
+        trace_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            error_code=ErrorCode.INTENT_RECOGNITION_ERROR,
+            message=message,
+            trace_id=trace_id
+        )
+
+
+class IndexingError(APIException):
+    """索引异常."""
+
+    def __init__(
+        self,
+        message: str = "Indexing error",
+        trace_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            error_code=ErrorCode.INDEXING_ERROR,
+            message=message,
+            trace_id=trace_id
+        )
+
+
+class RAGError(APIException):
+    """RAG异常."""
+
+    def __init__(
+        self,
+        message: str = "RAG error",
+        trace_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            error_code=ErrorCode.RAG_ERROR,
+            message=message,
+            trace_id=trace_id
+        )
+
+
+class DataNotFoundError(APIException):
+    """数据不存在异常."""
+
+    def __init__(
+        self,
+        message: str = "Data not found",
+        trace_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            error_code=ErrorCode.DATA_NOT_FOUND,
+            message=message,
+            trace_id=trace_id
+        )
+
+
+class DatabaseError(APIException):
+    """数据库异常."""
+
+    def __init__(
+        self,
+        message: str = "Database error",
+        trace_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            error_code=ErrorCode.DATABASE_ERROR,
+            message=message,
+            trace_id=trace_id
+        )
+
+
+class ProjectNotFoundError(APIException):
+    """项目不存在异常."""
+
+    def __init__(
+        self,
+        message: str = "Project not found",
+        project_id: Optional[str] = None,
+        trace_id: Optional[str] = None,
+    ) -> None:
+        details = {}
+        if project_id:
+            details["project_id"] = project_id
+        super().__init__(
+            error_code=ErrorCode.PROJECT_NOT_FOUND,
+            message=message,
+            details=details,
+            trace_id=trace_id
+        )
+
+
+class SkillExecutionError(APIException):
+    """技能执行异常."""
+
+    def __init__(
+        self,
+        message: str = "Skill execution error",
+        skill_name: Optional[str] = None,
+        trace_id: Optional[str] = None,
+    ) -> None:
+        details = {}
+        if skill_name:
+            details["skill_name"] = skill_name
+        super().__init__(
+            error_code=ErrorCode.SKILL_EXECUTION_ERROR,
+            message=message,
+            details=details,
+            trace_id=trace_id
+        )
+
+
+class PermissionError(APIException):
+    """权限异常."""
+
+    def __init__(
+        self,
+        message: str = "Permission error",
+        trace_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            error_code=ErrorCode.PERMISSION_ERROR,
+            message=message,
             trace_id=trace_id
         )

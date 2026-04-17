@@ -88,4 +88,4 @@ tmp/
 *.dll
 *.exe
 *.o
-*.pyc
+*.pycws_venv/

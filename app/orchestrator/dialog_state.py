@@ -528,9 +528,17 @@ class DialogStateMachine:
         key = self._build_key(session.session_id)
 
         import json
+        from datetime import datetime
+        
+        def datetime_serializer(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+        
         data = json.dumps(
-            session.model_dump(exclude_none=True),
+            session.model_dump(exclude_none=True, mode="json"),
             ensure_ascii=False,
+            default=datetime_serializer,
         )
 
         await redis_client.set(key, data, ex=self._session_ttl)

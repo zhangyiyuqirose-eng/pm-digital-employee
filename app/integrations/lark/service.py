@@ -115,13 +115,13 @@ class LarkService:
         Returns:
             Dict: Send result
         """
+        # 飞书Interactive卡片需要直接发送card内容，不需要wrapper
+        # 正确格式: {"type": "interactive", "config":..., "header":..., "elements":...}
+        # 或者直接把card作为content（SDK会处理）
         return await self._client.send_to_chat(
             chat_id=chat_id,
             msg_type="interactive",
-            content={
-                "type": "template",
-                "data": card,
-            },
+            content=card,
         )
 
     # ==================== User info ====================
