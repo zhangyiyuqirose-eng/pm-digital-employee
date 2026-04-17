@@ -36,17 +36,13 @@ async def get_db_session() -> AsyncGenerator:
 
     Yields:
         AsyncSession: 数据库会话
-
-    Example:
-        ```python
-        @router.get("/users")
-        async def list_users(session: AsyncSession = Depends(get_db_session)):
-            ...
-        ```
     """
-    from app.db.session import get_session_context
+    from app.db import db_manager
 
-    async with get_session_context() as session:
+    if db_manager.async_session_factory is None:
+        raise RuntimeError("Database session factory not initialized")
+
+    async with db_manager.async_session_factory() as session:
         yield session
 
 
