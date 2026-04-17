@@ -300,7 +300,9 @@ async def _process_message_async(
 @internal_router.post("/process-message")
 async def internal_process_message(request: Request) -> Dict[str, Any]:
     """
-    内部消息处理端点（供WebSocket调用）。    无签名验证，直接处理消息。
+    内部消息处理端点（供WebSocket调用）。
+
+    无签名验证，直接处理消息。
     """
     try:
         data = await request.json()
@@ -313,6 +315,12 @@ async def internal_process_message(request: Request) -> Dict[str, Any]:
         set_trace_id(msg_id)
 
         logger.info("Internal process message", msg_id=msg_id, sender_id=sender_id, sender_user_id=sender_user_id)
+
+        # ⚠️ 幂等检查：防止重复处理
+        idempotency_service = get_message_idempotency_service()
+        if not await idempotency_service.check_message(msg_id):
+            logger.info("Message already processed, skipping", msg_id=msg_id)
+            return {"code": 0, "msg": "ok", "result": {"skipped": True, "reason": "duplicate"}}
 
         # 构建 LarkMessage
         message = LarkMessage(
