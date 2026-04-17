@@ -518,3 +518,47 @@ class PermissionError(APIException):
             message=message,
             trace_id=trace_id
         )
+
+class TaskNotFoundError(APIException):
+    """任务不存在异常."""
+
+    def __init__(self, message: str = "任务不存在", task_id: Optional[str] = None, trace_id: Optional[str] = None) -> None:
+        details = {}
+        if task_id:
+            details["task_id"] = task_id
+        super().__init__(
+            error_code=ErrorCode.DATA_NOT_FOUND,
+            message=message,
+            trace_id=trace_id,
+            details=details
+        )
+
+
+class RiskNotFoundError(APIException):
+    """风险不存在异常."""
+
+    def __init__(self, message: str = "风险不存在", risk_id: Optional[str] = None, trace_id: Optional[str] = None) -> None:
+        details = {}
+        if risk_id:
+            details["risk_id"] = risk_id
+        super().__init__(
+            error_code=ErrorCode.DATA_NOT_FOUND,
+            message=message,
+            trace_id=trace_id,
+            details=details
+        )
+
+
+class MilestoneNotFoundError(APIException):
+    """里程碑不存在异常."""
+
+    def __init__(self, message: str = "里程碑不存在", milestone_id: Optional[str] = None, trace_id: Optional[str] = None) -> None:
+        details = {}
+        if milestone_id:
+            details["milestone_id"] = milestone_id
+        super().__init__(
+            error_code=ErrorCode.DATA_NOT_FOUND,
+            message=message,
+            trace_id=trace_id,
+            details=details
+        )
