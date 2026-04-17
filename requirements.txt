@@ -77,4 +77,5 @@ pytest-mock>=3.14.0,<4.0.0
 # Code Quality (dev)
 ruff>=0.8.0,<0.9.0
 black>=24.10.0,<25.0.0
-mypy>=1.13.0,<2.0.0aiosqlite>=0.20.0
+mypy>=1.13.0,<2.0.0
+aiosqlite>=0.20.0

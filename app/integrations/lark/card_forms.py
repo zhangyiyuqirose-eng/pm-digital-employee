@@ -79,7 +79,7 @@ def build_project_create_card() -> Dict[str, Any]:
         builder.create_button(
             text="提交创建",
             value={"action": "create_project"},
-            type="primary",
+            style="primary",
         )
     )
     
@@ -109,7 +109,7 @@ def build_task_create_card(project_id: str, project_name: str) -> Dict[str, Any]
         builder.create_button(
             text="提交任务",
             value={"action": "create_task", "project_id": project_id},
-            type="primary",
+            style="primary",
         )
     )
     
@@ -138,7 +138,7 @@ def build_risk_create_card(project_id: str, project_name: str) -> Dict[str, Any]
         builder.create_button(
             text="提交风险",
             value={"action": "create_risk", "project_id": project_id},
-            type="danger",
+            style="danger",
         )
     )
     
@@ -167,7 +167,7 @@ def build_cost_create_card(project_id: str, project_name: str) -> Dict[str, Any]
         builder.create_button(
             text="提交成本",
             value={"action": "create_cost", "project_id": project_id},
-            type="primary",
+            style="primary",
         )
     )
     
@@ -196,7 +196,7 @@ def build_milestone_create_card(project_id: str, project_name: str) -> Dict[str,
         builder.create_button(
             text="提交里程碑",
             value={"action": "create_milestone", "project_id": project_id},
-            type="primary",
+            style="primary",
         )
     )
     
@@ -229,22 +229,22 @@ def build_data_entry_menu_card(project_id: str, project_name: str) -> Dict[str, 
         builder.create_button(
             text="📝 录入任务",
             value={"action": "menu_task", "project_id": project_id},
-            type="primary",
+            style="primary",
         ),
         builder.create_button(
             text="⚠️ 登记风险",
             value={"action": "menu_risk", "project_id": project_id},
-            type="danger",
+            style="danger",
         ),
         builder.create_button(
             text="💰 录入成本",
             value={"action": "menu_cost", "project_id": project_id},
-            type="default",
+            style="default",
         ),
         builder.create_button(
             text="🎯 添加里程碑",
             value={"action": "menu_milestone", "project_id": project_id},
-            type="default",
+            style="default",
         ),
     ]
     
