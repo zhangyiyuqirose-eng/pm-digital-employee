@@ -44,13 +44,9 @@ async def get_db_session() -> AsyncGenerator:
             ...
         ```
     """
-    from app.db.session import get_async_session_factory
+    from app.db.session import get_session_context
 
-    session_factory = get_async_session_factory()
-    if not session_factory:
-        raise RuntimeError("Database session factory not initialized")
-
-    async with session_factory() as session:
+    async with get_session_context() as session:
         yield session
 
 
