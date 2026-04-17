@@ -2,7 +2,30 @@
 
 ---
 
-## [2026-04-17] - 代码优化与测试验证
+## [2026-04-17-v2] - UnitOfWork模式与测试完善
+
+### 新增功能 ✨
+
+- **UnitOfWork事务管理**: 新增 `app/core/unit_of_work.py`，实现事务边界管理
+  - `UnitOfWork` 类支持 begin/commit/rollback
+  - 上下文管理器自动管理事务
+  - 异常自动回滚机制
+  - `UnitOfWorkManager` 工厂模式
+
+### 测试改进 🧪
+
+- 新增 `tests/test_unit_of_work.py`（14个测试全通过）
+- 重构 `tests/test_repository.py`（使用纯Mock模式，12个测试全通过）
+- 当前可执行测试：**54个全通过**
+- 通过率：**100%**
+
+### 文档更新 📚
+
+- 更新 `docs/自动化测试报告.md`
+
+---
+
+## [2026-04-17-v1] - 代码优化与测试验证
 
 ### 新增功能 ✨
 
