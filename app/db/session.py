@@ -49,6 +49,15 @@ class DatabaseManager:
             logger.warning("Database engine already initialized")
             return
 
+        # 导入所有模型以确保SQLAlchemy关系正确初始化
+        from app.domain.models import (  # noqa: F401
+            User, Project, Task, Milestone, ProjectCostBudget, ProjectCostActual,
+            ProjectRisk, ProjectDocument, ConversationSession, ConversationMessage,
+            SkillDefinition, ProjectSkillSwitch, ApprovalWorkflow, AuditLog,
+            KnowledgeDocument, RetrievalTrace, EventRecord, LLMUsageLog,
+            UserProjectRole, GroupProjectBinding,
+        )
+
         logger.info(
             "Initializing database connection pool",
             extra={
