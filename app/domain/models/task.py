@@ -12,14 +12,14 @@ from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, Nume
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.domain.base import ProjectScopedMixin
+from app.domain.base import Base, ProjectScopedMixin
 from app.domain.enums import TaskPriority, TaskStatus
 
 if TYPE_CHECKING:
     from app.domain.models.project import Project
 
 
-class Task(ProjectScopedMixin):
+class Task(Base, ProjectScopedMixin):
     """
     任务实体.
 

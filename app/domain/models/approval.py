@@ -11,11 +11,11 @@ from sqlalchemy import DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.domain.base import ProjectScopedMixin
+from app.domain.base import Base, ProjectScopedMixin
 from app.domain.enums import ApprovalStatus, ApprovalType
 
 
-class ApprovalWorkflow(ProjectScopedMixin):
+class ApprovalWorkflow(Base, ProjectScopedMixin):
     """
     审批流程实体.
 

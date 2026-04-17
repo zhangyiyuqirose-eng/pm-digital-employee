@@ -12,14 +12,14 @@ from sqlalchemy import Date, DateTime, ForeignKey, Index, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.domain.base import ProjectScopedMixin
+from app.domain.base import Base, ProjectScopedMixin
 from app.domain.enums import CostCategory
 
 if TYPE_CHECKING:
     from app.domain.models.project import Project
 
 
-class ProjectCostBudget(ProjectScopedMixin):
+class ProjectCostBudget(Base, ProjectScopedMixin):
     """
     项目成本预算实体.
 
@@ -98,7 +98,7 @@ class ProjectCostBudget(ProjectScopedMixin):
         return f"<ProjectCostBudget(id={self.id}, category={self.category}, amount={self.amount})>"
 
 
-class ProjectCostActual(ProjectScopedMixin):
+class ProjectCostActual(Base, ProjectScopedMixin):
     """
     项目成本实际支出实体.
 

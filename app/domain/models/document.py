@@ -11,14 +11,14 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Te
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.domain.base import ProjectScopedMixin
+from app.domain.base import Base, ProjectScopedMixin
 from app.domain.enums import DocumentStatus, DocumentType
 
 if TYPE_CHECKING:
     from app.domain.models.project import Project
 
 
-class ProjectDocument(ProjectScopedMixin):
+class ProjectDocument(Base, ProjectScopedMixin):
     """
     项目文档实体.
 

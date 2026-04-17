@@ -11,14 +11,14 @@ from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.domain.base import ProjectScopedMixin
+from app.domain.base import Base, ProjectScopedMixin
 from app.domain.enums import RiskCategory, RiskLevel, RiskStatus
 
 if TYPE_CHECKING:
     from app.domain.models.project import Project
 
 
-class ProjectRisk(ProjectScopedMixin):
+class ProjectRisk(Base, ProjectScopedMixin):
     """
     项目风险实体.
 
