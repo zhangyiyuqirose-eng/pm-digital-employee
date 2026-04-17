@@ -63,6 +63,116 @@ async def list_skills():
     }
 
 
+@api_v1_router.get("/users", tags=["Users"])
+async def list_users(skip: int = 0, limit: int = 100):
+    """列出用户."""
+    return {
+        "users": [],
+        "skip": skip,
+        "limit": limit,
+        "total": 0,
+    }
+
+
+@api_v1_router.get("/users/{user_id}/projects", tags=["Users"])
+async def get_user_projects(user_id: str):
+    """获取用户参与的项目."""
+    return {
+        "user_id": user_id,
+        "projects": [],
+    }
+
+
+@api_v1_router.get("/tasks", tags=["Tasks"])
+async def list_tasks(project_id: str = None, status: str = None, skip: int = 0, limit: int = 100):
+    """列出任务."""
+    return {
+        "tasks": [],
+        "project_id": project_id,
+        "status": status,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@api_v1_router.get("/risks", tags=["Risks"])
+async def list_risks(project_id: str = None, level: str = None, skip: int = 0, limit: int = 100):
+    """列出风险."""
+    return {
+        "risks": [],
+        "project_id": project_id,
+        "level": level,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@api_v1_router.get("/costs/budget", tags=["Costs"])
+async def list_cost_budgets(project_id: str = None, skip: int = 0, limit: int = 100):
+    """列出成本预算."""
+    return {
+        "budgets": [],
+        "project_id": project_id,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@api_v1_router.get("/costs/actual", tags=["Costs"])
+async def list_cost_actuals(project_id: str = None, skip: int = 0, limit: int = 100):
+    """列出实际成本."""
+    return {
+        "actuals": [],
+        "project_id": project_id,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@api_v1_router.get("/milestones", tags=["Milestones"])
+async def list_milestones(project_id: str = None, skip: int = 0, limit: int = 100):
+    """列出里程碑."""
+    return {
+        "milestones": [],
+        "project_id": project_id,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@api_v1_router.get("/documents", tags=["Documents"])
+async def list_documents(project_id: str = None, doc_type: str = None, skip: int = 0, limit: int = 100):
+    """列出文档."""
+    return {
+        "documents": [],
+        "project_id": project_id,
+        "doc_type": doc_type,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@api_v1_router.get("/knowledge", tags=["Knowledge"])
+async def list_knowledge(scope_type: str = None, skip: int = 0, limit: int = 100):
+    """列出知识库文档."""
+    return {
+        "knowledge": [],
+        "scope_type": scope_type,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+@api_v1_router.get("/llm/stats", tags=["LLM"])
+async def get_llm_stats():
+    """获取LLM使用统计."""
+    from app.ai.llm_gateway import get_llm_gateway
+
+    gateway = get_llm_gateway()
+    summary = gateway.get_memory_stats_summary()
+    return summary
+
+
 @api_v1_router.get("/audit/logs", tags=["Audit"])
 async def list_audit_logs():
     """列出审计日志."""
