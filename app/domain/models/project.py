@@ -101,9 +101,9 @@ class Project(Base, AuditMixin):
     )
 
     priority: Mapped[int] = mapped_column(
-        String(32),
+        Integer,
         nullable=True,
-        default="medium",
+        default=2,
         comment="项目优先级",
     )
 
