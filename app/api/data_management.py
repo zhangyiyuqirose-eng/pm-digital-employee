@@ -252,7 +252,7 @@ async def create_risk(
         "msg": "风险登记成功",
         "data": {
             "risk_id": str(risk.id),
-            "name": risk.name,
+            "name": risk.title,  # title映射到name
             "level": risk.level,
         },
     }
