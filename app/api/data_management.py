@@ -144,6 +144,12 @@ async def create_task(
     if data.get("end_date"):
         end_date_obj = datetime.strptime(data.get("end_date"), '%Y-%m-%d').date()
 
+    # priority转换（整数转字符串）
+    priority_val = data.get("priority", 2)
+    if isinstance(priority_val, int):
+        priority_map = {1: "high", 2: "medium", 3: "low", 4: "critical"}
+        priority_val = priority_map.get(priority_val, "medium")
+
     service = TaskService(session)
     task = await service.create_task(
         project_id=uuid.UUID(project_id),
@@ -152,7 +158,7 @@ async def create_task(
         assignee_id=data.get("assignee_id"),
         start_date=start_date_obj,
         end_date=end_date_obj,
-        priority=data.get("priority", 2),
+        priority=priority_val,
         status=data.get("status", "未开始"),
     )
 
