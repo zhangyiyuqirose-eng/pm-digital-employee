@@ -100,7 +100,7 @@ class Project(Base, AuditMixin):
         comment="项目类型",
     )
 
-    priority: Mapped[Optional[str]] = mapped_column(
+    priority: Mapped[int] = mapped_column(
         String(32),
         nullable=True,
         default="medium",
