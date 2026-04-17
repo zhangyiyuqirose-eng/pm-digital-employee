@@ -242,7 +242,7 @@ async def create_risk(
         title=data.get("name"),  # name映射到title
         description=data.get("description"),
         level=data.get("level", "中"),
-        category=data.get("category"),
+        category=data.get("category", "schedule"),  # 默认category为schedule
         mitigation_plan=data.get("mitigation_plan"),
         owner_id=data.get("owner_id"),
     )
