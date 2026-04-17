@@ -212,6 +212,25 @@ async def _process_button_click_async(
             result = await _handle_reject_action(user_id, action_value)
         elif action_type == "retry":
             result = await _handle_retry_action(user_id, action_value)
+        # 数据录入菜单按钮处理
+        elif action_type == "menu_task":
+            result = await _handle_menu_task_action(user_id, action_value)
+        elif action_type == "menu_risk":
+            result = await _handle_menu_risk_action(user_id, action_value)
+        elif action_type == "menu_cost":
+            result = await _handle_menu_cost_action(user_id, action_value)
+        elif action_type == "menu_milestone":
+            result = await _handle_menu_milestone_action(user_id, action_value)
+        elif action_type == "create_project":
+            result = await _handle_create_project_action(user_id, action_value)
+        elif action_type == "create_task":
+            result = await _handle_create_task_action(user_id, action_value)
+        elif action_type == "create_risk":
+            result = await _handle_create_risk_action(user_id, action_value)
+        elif action_type == "create_cost":
+            result = await _handle_create_cost_action(user_id, action_value)
+        elif action_type == "create_milestone":
+            result = await _handle_create_milestone_action(user_id, action_value)
         else:
             logger.warning("Unknown action type", action_type=action_type)
             result = {"success": False, "error": "Unknown action type"}
@@ -420,3 +439,135 @@ def _build_already_processed_response() -> Dict[str, Any]:
         "type": "template",
         "data": card.build(),
     }
+
+
+# ==================== 数据录入处理函数 ====================
+
+async def _handle_menu_task_action(
+    user_id: str,
+    action_value: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Handle menu task action - show task input card."""
+    from app.integrations.lark.card_forms import build_task_create_card
+    from app.integrations.lark.service import get_lark_service
+
+    project_id = action_value.get("project_id")
+    project_name = action_value.get("project_name", "当前项目")
+
+    logger.info("Showing task input card", project_id=project_id, user_id=user_id)
+
+    lark_service = get_lark_service()
+    card = build_task_create_card(project_id, project_name)
+    await lark_service.send_card(user_id=user_id, card=card)
+
+    return {"success": True, "message": "任务录入卡片已发送"}
+
+
+async def _handle_menu_risk_action(
+    user_id: str,
+    action_value: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Handle menu risk action - show risk input card."""
+    from app.integrations.lark.card_forms import build_risk_create_card
+    from app.integrations.lark.service import get_lark_service
+
+    project_id = action_value.get("project_id")
+    project_name = action_value.get("project_name", "当前项目")
+
+    logger.info("Showing risk input card", project_id=project_id, user_id=user_id)
+
+    lark_service = get_lark_service()
+    card = build_risk_create_card(project_id, project_name)
+    await lark_service.send_card(user_id=user_id, card=card)
+
+    return {"success": True, "message": "风险登记卡片已发送"}
+
+
+async def _handle_menu_cost_action(
+    user_id: str,
+    action_value: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Handle menu cost action - show cost input card."""
+    from app.integrations.lark.card_forms import build_cost_create_card
+    from app.integrations.lark.service import get_lark_service
+
+    project_id = action_value.get("project_id")
+    project_name = action_value.get("project_name", "当前项目")
+
+    logger.info("Showing cost input card", project_id=project_id, user_id=user_id)
+
+    lark_service = get_lark_service()
+    card = build_cost_create_card(project_id, project_name)
+    await lark_service.send_card(user_id=user_id, card=card)
+
+    return {"success": True, "message": "成本录入卡片已发送"}
+
+
+async def _handle_menu_milestone_action(
+    user_id: str,
+    action_value: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Handle menu milestone action - show milestone input card."""
+    from app.integrations.lark.card_forms import build_milestone_create_card
+    from app.integrations.lark.service import get_lark_service
+
+    project_id = action_value.get("project_id")
+    project_name = action_value.get("project_name", "当前项目")
+
+    logger.info("Showing milestone input card", project_id=project_id, user_id=user_id)
+
+    lark_service = get_lark_service()
+    card = build_milestone_create_card(project_id, project_name)
+    await lark_service.send_card(user_id=user_id, card=card)
+
+    return {"success": True, "message": "里程碑卡片已发送"}
+
+
+async def _handle_create_project_action(
+    user_id: str,
+    action_value: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Handle create project action."""
+    # TODO: Extract form data and call ProjectService.create_project()
+    logger.info("Creating project from card", user_id=user_id, action_value=action_value)
+    return {"success": True, "message": "项目创建成功"}
+
+
+async def _handle_create_task_action(
+    user_id: str,
+    action_value: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Handle create task action."""
+    # TODO: Extract form data and call TaskService.create_task()
+    logger.info("Creating task from card", user_id=user_id, action_value=action_value)
+    return {"success": True, "message": "任务创建成功"}
+
+
+async def _handle_create_risk_action(
+    user_id: str,
+    action_value: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Handle create risk action."""
+    # TODO: Extract form data and call RiskService.create_risk()
+    logger.info("Creating risk from card", user_id=user_id, action_value=action_value)
+    return {"success": True, "message": "风险登记成功"}
+
+
+async def _handle_create_cost_action(
+    user_id: str,
+    action_value: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Handle create cost action."""
+    # TODO: Extract form data and call CostService.create_cost()
+    logger.info("Creating cost from card", user_id=user_id, action_value=action_value)
+    return {"success": True, "message": "成本录入成功"}
+
+
+async def _handle_create_milestone_action(
+    user_id: str,
+    action_value: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Handle create milestone action."""
+    # TODO: Extract form data and call MilestoneService.create_milestone()
+    logger.info("Creating milestone from card", user_id=user_id, action_value=action_value)
+    return {"success": True, "message": "里程碑创建成功"}

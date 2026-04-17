@@ -1,6 +1,18 @@
 """
 PM Digital Employee - Services Module
-项目经理数字员工系统 - 业务服务层模块
+项目经理数字员工系统 - Service层初始化
 """
 
-__all__ = []
+from app.services.project_service import ProjectService
+from app.services.task_service import TaskService
+from app.services.risk_service import RiskService
+from app.services.cost_service import CostService
+from app.services.milestone_service import MilestoneService
+
+__all__ = [
+    "ProjectService",
+    "TaskService",
+    "RiskService",
+    "CostService",
+    "MilestoneService",
+]
