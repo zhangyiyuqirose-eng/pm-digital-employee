@@ -4,7 +4,7 @@ PM Digital Employee - Project Service
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import and_, select, func
@@ -73,6 +73,20 @@ class ProjectService:
             today = datetime.now().strftime("%Y%m%d")
             code = f"PRJ-{today}-{uuid.uuid4().hex[:6].upper()}"
 
+        # 转换字符串日期为date对象
+        start_date_obj = None
+        end_date_obj = None
+        if start_date:
+            if isinstance(start_date, str):
+                start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+            else:
+                start_date_obj = start_date
+        if end_date:
+            if isinstance(end_date, str):
+                end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+            else:
+                end_date_obj = end_date
+
         # 创建项目实体
         project = Project(
             id=uuid.uuid4(),
@@ -82,8 +96,8 @@ class ProjectService:
             status=ProjectStatus.DRAFT.value,
             project_type=project_type,
             priority=2,
-            start_date=start_date,
-            end_date=end_date,
+            start_date=start_date_obj,
+            end_date=end_date_obj,
             total_budget=total_budget or 0,
             pm_id=pm_id,
             department_id=department_id,
