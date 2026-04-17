@@ -8,7 +8,7 @@ PM Digital Employee - Lark Card Forms
 import json
 from typing import Any, Dict, List, Optional
 
-from app.integrations.lark.schemas import LarkCardBuilder, LarkColor
+from app.integrations.lark.schemas import LarkCardBuilder
 
 
 # ==================== 项目创建卡片 ====================
@@ -23,7 +23,7 @@ def build_project_create_card() -> Dict[str, Any]:
     builder = LarkCardBuilder()
     
     # 标题
-    builder.set_header("创建新项目", LarkColor.BLUE)
+    builder.set_header("创建新项目", "blue")
     
     # 表单说明
     builder.add_markdown("请填写项目基本信息：")
@@ -101,7 +101,7 @@ def build_task_create_card(project_id: str, project_name: str) -> Dict[str, Any]
     """
     builder = LarkCardBuilder()
     
-    builder.set_header(f"录入任务 - {project_name}", LarkColor.GREEN)
+    builder.set_header(f"录入任务 - {project_name}", "green")
     builder.add_markdown("请填写任务信息：")
     
     # 提交按钮
@@ -131,7 +131,7 @@ def build_risk_create_card(project_id: str, project_name: str) -> Dict[str, Any]
     """
     builder = LarkCardBuilder()
     
-    builder.set_header(f"登记风险 - {project_name}", LarkColor.RED)
+    builder.set_header(f"登记风险 - {project_name}", "red")
     builder.add_markdown("请填写风险信息：")
     
     builder.add_action(
@@ -160,7 +160,7 @@ def build_cost_create_card(project_id: str, project_name: str) -> Dict[str, Any]
     """
     builder = LarkCardBuilder()
     
-    builder.set_header(f"录入成本 - {project_name}", LarkColor.ORANGE)
+    builder.set_header(f"录入成本 - {project_name}", "orange")
     builder.add_markdown("请填写成本信息：")
     
     builder.add_action(
@@ -189,7 +189,7 @@ def build_milestone_create_card(project_id: str, project_name: str) -> Dict[str,
     """
     builder = LarkCardBuilder()
     
-    builder.set_header(f"添加里程碑 - {project_name}", LarkColor.PURPLE)
+    builder.set_header(f"添加里程碑 - {project_name}", "purple")
     builder.add_markdown("请填写里程碑信息：")
     
     builder.add_action(
@@ -220,7 +220,7 @@ def build_data_entry_menu_card(project_id: str, project_name: str) -> Dict[str, 
     """
     builder = LarkCardBuilder()
     
-    builder.set_header(f"数据录入 - {project_name}", LarkColor.BLUE)
+    builder.set_header(f"数据录入 - {project_name}", "blue")
     builder.add_markdown("请选择要录入的数据类型：")
     builder.add_divider()
     
