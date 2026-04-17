@@ -796,6 +796,33 @@ class LLMGateway:
                 success, error_message,
             )
 
+    def clear_memory_stats(self) -> None:
+        """
+        Clear all in-memory usage statistics.
+
+        Useful for testing or resetting stats after persistent storage.
+        """
+        self._usage_stats.clear()
+        logger.debug("Cleared all in-memory usage stats")
+
+    def get_memory_stats_summary(self) -> Dict[str, Any]:
+        """
+        Get summary of in-memory usage statistics.
+
+        Returns:
+            Dict: Summary with total users, total records, and top users
+        """
+        total_users = len(self._usage_stats)
+        total_records = sum(len(records) for records in self._usage_stats.values())
+        
+        return {
+            "total_users": total_users,
+            "total_records": total_records,
+            "max_users_limit": self._MAX_TOTAL_USERS,
+            "max_records_per_user": self._MAX_RECORDS_PER_USER,
+            "users_at_limit": sum(1 for records in self._usage_stats.values() if len(records) >= self._MAX_RECORDS_PER_USER),
+        }
+
     async def _cleanup_old_logs(self, retention_days: int = 30) -> int:
         """
         Delete usage logs older than retention period.
@@ -836,6 +863,10 @@ class LLMGateway:
             logger.warning("Failed to cleanup old usage logs", error=str(e))
             return 0
 
+    # Memory limits for in-memory usage stats
+    _MAX_RECORDS_PER_USER = 100
+    _MAX_TOTAL_USERS = 1000
+
     def _log_usage_in_memory(
         self,
         trace_id: str,
@@ -850,6 +881,10 @@ class LLMGateway:
     ) -> None:
         """
         Record usage to in-memory stats (fallback).
+
+        Implements memory limits to prevent unbounded growth:
+        - Max 100 records per user (FIFO eviction)
+        - Max 1000 users tracked (oldest user evicted first)
         """
         record = LLMUsageRecord(
             trace_id=trace_id,
@@ -866,7 +901,18 @@ class LLMGateway:
 
         if user_id not in self._usage_stats:
             self._usage_stats[user_id] = []
+
         self._usage_stats[user_id].append(record)
+
+        # Enforce per-user limit (FIFO eviction)
+        if len(self._usage_stats[user_id]) > self._MAX_RECORDS_PER_USER:
+            self._usage_stats[user_id] = self._usage_stats[user_id][-self._MAX_RECORDS_PER_USER:]
+
+        # Enforce total user limit (evict oldest user)
+        if len(self._usage_stats) > self._MAX_TOTAL_USERS:
+            oldest_user = next(iter(self._usage_stats.keys()))
+            del self._usage_stats[oldest_user]
+            logger.debug("Evicted oldest user from memory stats", user_id=oldest_user)
 
     async def generate_with_fallback(
         self,

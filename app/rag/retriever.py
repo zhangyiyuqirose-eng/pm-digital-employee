@@ -415,6 +415,15 @@ class VectorRetriever:
             )
 
         # TODO: 添加部门权限
+        # 部门文档
+        department_id = access_filter.get("department_id")
+        if department_id:
+            conditions.append(
+                and_(
+                    KnowledgeDocument.scope_type == DocumentScopeType.DEPARTMENT.value,
+                    KnowledgeDocument.scope_id == department_id,
+                ),
+            )
 
         return query.where(or_(*conditions))
 
