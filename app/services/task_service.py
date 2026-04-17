@@ -86,7 +86,7 @@ class TaskService:
         # 生成任务编码
         code = await self._repository.generate_task_code(project_id)
 
-        # 创建任务数据
+        # 创建任务数据（移除created_at/updated_at，Task模型中无这些字段）
         task_data = {
             "id": uuid.uuid4(),
             "project_id": project_id,
@@ -103,9 +103,6 @@ class TaskService:
             "estimated_hours": estimated_hours,
             "deliverable": deliverable,
             "parent_task_id": parent_task_id,
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
-            "created_by": user_id,
         }
 
         task = await self._repository.create_in_project(project_id, task_data)

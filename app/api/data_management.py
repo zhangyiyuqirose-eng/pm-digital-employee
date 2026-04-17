@@ -9,6 +9,7 @@ import uuid
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from datetime import datetime
 
 from app.core.dependencies import get_db_session
 from app.core.logging import get_logger, set_trace_id
@@ -135,14 +136,22 @@ async def create_task(
 
     logger.info("Creating task", trace_id=trace_id, project_id=project_id, name=data.get("name"))
 
+    # 日期转换
+    start_date_obj = None
+    end_date_obj = None
+    if data.get("start_date"):
+        start_date_obj = datetime.strptime(data.get("start_date"), '%Y-%m-%d').date()
+    if data.get("end_date"):
+        end_date_obj = datetime.strptime(data.get("end_date"), '%Y-%m-%d').date()
+
     service = TaskService(session)
     task = await service.create_task(
         project_id=uuid.UUID(project_id),
         name=data.get("name"),
         description=data.get("description"),
         assignee_id=data.get("assignee_id"),
-        start_date=data.get("start_date"),
-        end_date=data.get("end_date"),
+        start_date=start_date_obj,
+        end_date=end_date_obj,
         priority=data.get("priority", 2),
         status=data.get("status", "未开始"),
     )
@@ -224,10 +233,10 @@ async def create_risk(
     service = RiskService(session)
     risk = await service.create_risk(
         project_id=uuid.UUID(project_id),
-        name=data.get("name"),
+        title=data.get("name"),  # name映射到title
         description=data.get("description"),
         level=data.get("level", "中"),
-        impact_scope=data.get("impact_scope"),
+        category=data.get("category"),
         mitigation_plan=data.get("mitigation_plan"),
         owner_id=data.get("owner_id"),
     )
@@ -268,6 +277,11 @@ async def create_cost(
     cost_type = data.get("cost_type", "budget")  # budget or actual
     logger.info("Creating cost", trace_id=trace_id, project_id=project_id, cost_type=cost_type)
 
+    # 日期转换
+    expense_date_obj = None
+    if data.get("occurred_date"):
+        expense_date_obj = datetime.strptime(data.get("occurred_date"), '%Y-%m-%d').date()
+
     service = CostService(session)
 
     if cost_type == "budget":
@@ -282,7 +296,7 @@ async def create_cost(
             project_id=uuid.UUID(project_id),
             category=data.get("category"),
             amount=data.get("amount"),
-            occurred_date=data.get("occurred_date"),
+            expense_date=expense_date_obj,  # occurred_date映射到expense_date
             description=data.get("description"),
         )
 
@@ -321,12 +335,17 @@ async def create_milestone(
 
     logger.info("Creating milestone", trace_id=trace_id, project_id=project_id, name=data.get("name"))
 
+    # 日期转换
+    due_date_obj = None
+    if data.get("planned_date"):
+        due_date_obj = datetime.strptime(data.get("planned_date"), '%Y-%m-%d').date()
+
     service = MilestoneService(session)
     milestone = await service.create_milestone(
         project_id=uuid.UUID(project_id),
         name=data.get("name"),
-        planned_date=data.get("planned_date"),
-        actual_date=data.get("actual_date"),
+        due_date=due_date_obj,  # planned_date映射到due_date
+        description=data.get("description"),
         status=data.get("status", "未完成"),
     )
 
