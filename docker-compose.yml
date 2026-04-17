@@ -84,7 +84,8 @@ services:
       APP_ENV: development
       APP_DEBUG: "true"
       APP_SECRET_KEY: dev_secret_key_change_in_production_32chars
-      DATABASE_URL: postgresql+asyncpg://pm_user:pm_password_123@postgres:5432/pm_digital_employee
+      DB_ASYNC_URL: postgresql+asyncpg://pm_user:pm_password_123@postgres:5432/pm_digital_employee
+      DB_URL: postgresql://pm_user:pm_password_123@postgres:5432/pm_digital_employee
       REDIS_URL: redis://:redis_123@redis:6379/0
       CELERY_BROKER_URL: pyamqp://pm_rabbitmq:rabbitmq_123@rabbitmq:5672//
       CELERY_RESULT_BACKEND: redis://:redis_123@redis:6379/1
@@ -141,7 +142,8 @@ services:
       --loglevel=INFO
       --concurrency=2
     environment:
-      DATABASE_URL: postgresql+asyncpg://pm_user:pm_password_123@postgres:5432/pm_digital_employee
+      DB_ASYNC_URL: postgresql+asyncpg://pm_user:pm_password_123@postgres:5432/pm_digital_employee
+      DB_URL: postgresql://pm_user:pm_password_123@postgres:5432/pm_digital_employee
       REDIS_URL: redis://:redis_123@redis:6379/0
       CELERY_BROKER_URL: pyamqp://pm_rabbitmq:rabbitmq_123@rabbitmq:5672//
       CELERY_RESULT_BACKEND: redis://:redis_123@redis:6379/1
