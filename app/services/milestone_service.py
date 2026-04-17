@@ -72,7 +72,7 @@ class MilestoneService:
         if project is None:
             raise ProjectNotFoundError(project_id=str(project_id))
 
-        # 创建里程碑数据
+        # 创建里程碑数据（移除created_at/updated_at，Milestone模型中无这些字段）
         milestone_data = {
             "id": uuid.uuid4(),
             "project_id": project_id,
@@ -82,9 +82,6 @@ class MilestoneService:
             "status": status,
             "is_key_milestone": is_key_milestone,
             "sort_order": sort_order,
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
-            "created_by": user_id,
         }
 
         milestone = await self._repository.create_in_project(project_id, milestone_data)

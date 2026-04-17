@@ -83,7 +83,7 @@ class RiskService:
         # 生成风险编码
         code = await self._repository.generate_risk_code(project_id)
 
-        # 创建风险数据
+        # 创建风险数据（移除created_at/updated_at，ProjectRisk模型中无这些字段）
         risk_data = {
             "id": uuid.uuid4(),
             "project_id": project_id,
@@ -100,9 +100,6 @@ class RiskService:
             "owner_id": owner_id,
             "owner_name": owner_name,
             "due_date": due_date,
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
-            "created_by": user_id,
         }
 
         risk = await self._repository.create_in_project(project_id, risk_data)

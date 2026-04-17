@@ -72,7 +72,7 @@ class CostService:
         if project is None:
             raise ProjectNotFoundError(project_id=str(project_id))
 
-        # 创建预算数据
+        # 创建预算数据（移除created_at/updated_at，ProjectCostBudget模型中无这些字段）
         budget_data = {
             "id": uuid.uuid4(),
             "project_id": project_id,
@@ -80,9 +80,6 @@ class CostService:
             "amount": amount,
             "description": description,
             "fiscal_year": fiscal_year,
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
-            "created_by": user_id,
         }
 
         budget = await self._budget_repository.create_in_project(project_id, budget_data)
@@ -232,7 +229,7 @@ class CostService:
         if project is None:
             raise ProjectNotFoundError(project_id=str(project_id))
 
-        # 创建实际支出数据
+        # 创建实际支出数据（移除created_at/updated_at，ProjectCostActual模型中无这些字段）
         actual_data = {
             "id": uuid.uuid4(),
             "project_id": project_id,
@@ -242,9 +239,6 @@ class CostService:
             "description": description,
             "invoice_number": invoice_number,
             "approval_status": "pending",
-            "created_at": datetime.now(timezone.utc),
-            "updated_at": datetime.now(timezone.utc),
-            "created_by": user_id,
         }
 
         actual = await self._actual_repository.create_in_project(project_id, actual_data)

@@ -69,7 +69,7 @@ class BaseRepository(Generic[ModelType], ABC):
             return instance
         except Exception as exc:
             logger.error("Failed to create record", model=self.model.__name__, error=str(exc))
-            raise DatabaseError(message=f"创建{self.model.__name__}失败", cause=exc)
+            raise DatabaseError(message=f"创建{self.model.__name__}失败: {str(exc)}")
 
     async def get_by_id(self, id: uuid.UUID) -> Optional[ModelType]:
         """
