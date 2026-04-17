@@ -37,12 +37,13 @@ async def get_db_session() -> AsyncGenerator:
     Yields:
         AsyncSession: 数据库会话
     """
-    from app.db import db_manager
+    from app.db.session import DatabaseManager, get_async_session_factory
 
-    if db_manager.async_session_factory is None:
+    session_factory = get_async_session_factory()
+    if session_factory is None:
         raise RuntimeError("Database session factory not initialized")
 
-    async with db_manager.async_session_factory() as session:
+    async with session_factory() as session:
         yield session
 
 
