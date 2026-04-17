@@ -79,7 +79,7 @@ class ProjectService:
             name=name,
             code=code,
             description=description,
-            status=ProjectStatus.PLANNING.value,
+            status=ProjectStatus.DRAFT.value,
             project_type=project_type,
             priority=2,
             start_date=start_date,

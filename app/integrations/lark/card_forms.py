@@ -248,7 +248,7 @@ def build_data_entry_menu_card(project_id: str, project_name: str) -> Dict[str, 
         ),
     ]
     
-    builder.add_action(*buttons)
+    builder.add_action(buttons)
     
     return builder.build()
 
