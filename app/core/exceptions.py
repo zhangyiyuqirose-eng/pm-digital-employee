@@ -562,3 +562,18 @@ class MilestoneNotFoundError(APIException):
             trace_id=trace_id,
             details=details
         )
+
+
+class CostNotFoundError(APIException):
+    """成本不存在异常."""
+
+    def __init__(self, message: str = "成本不存在", cost_id: Optional[str] = None, trace_id: Optional[str] = None) -> None:
+        details = {}
+        if cost_id:
+            details["cost_id"] = cost_id
+        super().__init__(
+            error_code=ErrorCode.DATA_NOT_FOUND,
+            message=message,
+            trace_id=trace_id,
+            details=details
+        )
