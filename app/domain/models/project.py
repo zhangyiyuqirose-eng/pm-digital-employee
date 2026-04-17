@@ -155,8 +155,8 @@ class Project(Base, AuditMixin):
     )
 
     # 部门信息
-    department_id: Mapped[Optional[str]] = mapped_column(
-        String(64),
+    department_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
         nullable=True,
         index=True,
         comment="所属部门ID",
