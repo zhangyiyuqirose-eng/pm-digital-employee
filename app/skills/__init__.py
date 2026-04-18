@@ -17,10 +17,6 @@ from app.orchestrator.skill_manifest import (
     get_project_query_manifest,
     get_meeting_minutes_manifest,
     get_compliance_review_manifest,
-    # 成本相关Skill
-    get_cost_estimation_manifest,
-    get_cost_monitoring_manifest,
-    get_cost_accounting_manifest,
 )
 
 
@@ -31,7 +27,7 @@ def register_all_skills() -> None:
     from app.skills.weekly_report_skill import WeeklyReportSkill
     from app.skills.policy_qa_skill import PolicyQASkill, TaskUpdateSkill, RiskAlertSkill, CostMonitorSkill
     from app.skills.additional_skills import WBSGenerationSkill, ProjectQuerySkill, MeetingMinutesSkill, ComplianceReviewSkill
-    from app.skills.cost_skills import CostEstimationSkill, CostMonitoringSkill, CostAccountingSkill
+    
 
     # Skill类映射
     skill_classes = {
@@ -45,9 +41,6 @@ def register_all_skills() -> None:
         "project_query": ProjectQuerySkill,
         "meeting_minutes": MeetingMinutesSkill,
         "compliance_review": ComplianceReviewSkill,
-        "cost_estimation": CostEstimationSkill,
-        "cost_monitoring": CostMonitoringSkill,
-        "cost_accounting": CostAccountingSkill,
     }
 
     for skill_name, manifest in DEFAULT_SKILL_MANIFESTS.items():
@@ -67,9 +60,5 @@ __all__ = [
     "get_project_query_manifest",
     "get_meeting_minutes_manifest",
     "get_compliance_review_manifest",
-    # 成本相关Skill
-    "get_cost_estimation_manifest",
-    "get_cost_monitoring_manifest",
-    "get_cost_accounting_manifest",
     "register_all_skills",
 ]

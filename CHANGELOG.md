@@ -2,6 +2,47 @@
 
 ---
 
+## [v1.1.0] - 2026-04-18 - 移除外部API Skill
+
+### 变更说明 📋
+
+本次版本移除了3个调用外部IT-Cost-System API的Skill，原因：外部服务不可用导致返回mock硬编码数据。
+
+### 删除项 🗑️
+
+- **移除 cost_estimation Skill（成本估算）**
+  - 原实现：调用 `http://it-cost-backend:8000/api/v1/estimation/calculate`
+  - 问题：外部服务未部署，fallback返回固定mock数据
+  - 删除文件：`app/skills/cost_skills.py`
+
+- **移除 cost_monitoring Skill（成本监控EVM）**
+  - 原实现：调用 `http://it-cost-backend:8000/api/v1/monitoring/evm/{project_id}/current`
+  - 问题：外部服务未部署，fallback返回固定mock数据
+
+- **移除 cost_accounting Skill（成本核算）**
+  - 原实现：调用 `http://it-cost-backend:8000/api/v1/accounting/trigger`
+  - 问题：外部服务未部署，fallback返回固定mock数据
+
+### 代码变更 🔧
+
+- 删除文件：`app/skills/cost_skills.py`（包含3个Skill类）
+- 更新导入：`app/skills/__init__.py`（移除3个Skill导入和注册）
+- 删除Manifest：`app/orchestrator/skill_manifest.py`（移除3个manifest函数定义）
+- 更新意图路由：`app/orchestrator/intent_router.py`（移除3个Skill关键词映射）
+
+### 保留功能 ✅
+
+- **cost_monitor Skill（成本监控）** 保留正常工作
+  - 实现：基于数据库查询（ProjectCostBudget、ProjectCostActual）
+  - 功能：对比预算与实际支出，预警超支风险
+
+### Skill总数
+
+- v1.0.0：13个Skill
+- v1.1.0：10个Skill
+
+---
+
 ## [2026-04-17-v5] - 依赖注入框架完成
 
 ### 新增功能 ✨
