@@ -11,6 +11,8 @@ from app.api.health import router as health_router
 from app.api.lark_webhook import router as lark_webhook_router, internal_router as internal_router
 from app.api.lark_callback import router as lark_callback_router
 from app.api.data_management import data_router
+from app.api.excel import excel_router
+from app.api.lark_sheet import lark_sheet_router
 
 # Create main router
 api_router = APIRouter()
@@ -29,6 +31,12 @@ api_router.include_router(lark_callback_router, tags=["Feishu Callback"])
 
 # Register data management routes
 api_router.include_router(data_router, tags=["Data Management"])
+
+# Register Excel import/export routes
+api_router.include_router(excel_router, tags=["Excel Import/Export"])
+
+# Register Lark Sheet sync routes
+api_router.include_router(lark_sheet_router, tags=["Lark Sheet Sync"])
 
 
 # API v1路由
