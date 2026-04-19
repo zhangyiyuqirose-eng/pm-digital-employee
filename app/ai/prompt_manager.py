@@ -344,6 +344,207 @@ class PromptManager:
                 ],
                 version="1.0.0",
             ),
+
+            # v1.3.0新增：文档解析相关模板
+
+            # 文档分类模板
+            "document_classification": PromptTemplate(
+                name="document_classification",
+                description="文档智能分类Prompt模板",
+                template="""你是一个项目管理文档分类专家。
+
+## 任务
+分析文档内容，判断文档类型和关联的业务场景。
+
+## 文档信息
+- 文件名：{file_name}
+- 文件类型：{file_type}
+- 内容摘要：{content_summary}
+
+## 输出要求
+请以JSON格式输出分类结果：
+```json
+{
+  "document_category": "文档大类",
+  "project_phase": "项目阶段",
+  "document_subtype": "文档子类型",
+  "confidence": 0.85,
+  "inferred_entity_types": []
+}
+```
+
+请直接输出JSON。
+""",
+                input_variables=[
+                    "file_name",
+                    "file_type",
+                    "content_summary",
+                ],
+                version="1.0.0",
+            ),
+
+            # 周报提取模板
+            "weekly_report_extraction": PromptTemplate(
+                name="weekly_report_extraction",
+                description="周报数据提取Prompt模板",
+                template="""你是一个项目周报数据提取专家。
+
+## 任务
+从周报文档中提取结构化数据。
+
+## 文档内容
+{document_content}
+
+## 输出要求
+请以JSON格式输出提取结果：
+```json
+{
+  "report_date": "2024-01-19",
+  "week_start": "2024-01-15",
+  "week_end": "2024-01-19",
+  "summary": "本周工作总结",
+  "completed_tasks": [],
+  "in_progress_tasks": [],
+  "next_week_plan": "下周计划",
+  "confidence": 0.90
+}
+```
+
+请直接输出JSON。
+""",
+                input_variables=["document_content"],
+                version="1.0.0",
+            ),
+
+            # 会议纪要提取模板
+            "meeting_minutes_extraction": PromptTemplate(
+                name="meeting_minutes_extraction",
+                description="会议纪要数据提取Prompt模板",
+                template="""你是一个会议纪要数据提取专家。
+
+## 任务
+从会议纪要文档中提取结构化数据，并识别待办事项。
+
+## 文档内容
+{document_content}
+
+## 输出要求
+请以JSON格式输出提取结果：
+```json
+{
+  "meeting_title": "会议标题",
+  "meeting_date": "2024-01-18",
+  "attendees": ["张三", "李四"],
+  "content": "会议内容",
+  "action_items": [
+    {"task_name": "任务名称", "assignee_name": "负责人", "priority": "high"}
+  ],
+  "confidence": 0.88
+}
+```
+
+请直接输出JSON。
+""",
+                input_variables=["document_content"],
+                version="1.0.0",
+            ),
+
+            # 通用数据提取模板
+            "document_extraction": PromptTemplate(
+                name="document_extraction",
+                description="通用项目数据提取Prompt模板",
+                template="""你是一个项目数据提取专家。
+
+## 任务
+从文档内容中提取结构化数据。
+
+## 目标实体类型
+{entity_types}
+
+## 实体字段定义
+{entity_schema}
+
+## 文档内容
+{document_content}
+
+## 输出要求
+请以JSON格式输出提取结果：
+```json
+{
+  "extracted_entities": [
+    {"entity_type": "Task", "data": {...}}
+  ],
+  "confidence": 0.85
+}
+```
+
+请直接输出JSON。
+""",
+                input_variables=[
+                    "entity_types",
+                    "entity_schema",
+                    "document_content",
+                ],
+                version="1.0.0",
+            ),
+
+            # WBS提取模板
+            "wbs_extraction": PromptTemplate(
+                name="wbs_extraction",
+                description="WBS数据提取Prompt模板",
+                template="""你是一个WBS数据提取专家。
+
+## 任务
+从WBS文档中提取任务分解结构数据。
+
+## 文档内容
+{document_content}
+
+## 输出要求
+请以JSON格式输出WBS结构，包含层级关系。
+```json
+{
+  "wbs_data": [
+    {"id": "1", "name": "任务名称", "level": 1, "children": []}
+  ],
+  "confidence": 0.85
+}
+```
+
+请直接输出JSON。
+""",
+                input_variables=["document_content"],
+                version="1.0.0",
+            ),
+
+            # 风险提取模板
+            "risk_extraction": PromptTemplate(
+                name="risk_extraction",
+                description="风险登记表数据提取Prompt模板",
+                template="""你是一个项目风险数据提取专家。
+
+## 任务
+从风险登记表文档中提取风险数据。
+
+## 文档内容
+{document_content}
+
+## 输出要求
+请以JSON格式输出风险列表：
+```json
+{
+  "risks": [
+    {"title": "风险描述", "level": "high", "probability": 3, "impact": 4}
+  ],
+  "confidence": 0.85
+}
+```
+
+请直接输出JSON。
+""",
+                input_variables=["document_content"],
+                version="1.0.0",
+            ),
         }
 
     def _load_templates_from_dir(self) -> None:

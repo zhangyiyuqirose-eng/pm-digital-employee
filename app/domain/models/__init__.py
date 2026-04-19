@@ -33,6 +33,9 @@ from app.domain.models.lark_sheet_binding import LarkSheetBinding
 from app.domain.models.data_version import DataVersion
 from app.domain.models.data_conflict import DataConflict
 
+# v1.3.0新增模型
+from app.domain.models.document_parse_record import DocumentParseRecord
+
 __all__ = [
     "User",
     "Project",
@@ -63,4 +66,6 @@ __all__ = [
     "LarkSheetBinding",
     "DataVersion",
     "DataConflict",
+    # v1.3.0新增
+    "DocumentParseRecord",
 ]

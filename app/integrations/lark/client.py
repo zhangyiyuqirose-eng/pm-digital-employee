@@ -405,6 +405,209 @@ class LarkClient:
             },
         )
 
+    # ==================== v1.3.0新增：文件API ====================
+
+    async def download_file(
+        self,
+        file_key: str,
+    ) -> bytes:
+        """
+        Download file from Lark.
+
+        API: /open-apis/im/v1/files/{file_key}/download
+
+        Args:
+            file_key: Lark file key
+
+        Returns:
+            bytes: File content
+
+        Raises:
+            LarkError: Download failed
+        """
+        client = await self._get_client()
+        token = await self.get_tenant_token()
+
+        url = f"{self.api_domain}/open-apis/im/v1/files/{file_key}/download"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+        }
+
+        logger.info("Downloading file from Lark", file_key=file_key)
+
+        try:
+            response = await client.get(url, headers=headers, timeout=60.0)
+
+            if response.status_code != 200:
+                logger.error(
+                    "File download failed",
+                    file_key=file_key,
+                    status_code=response.status_code,
+                )
+                raise LarkError(
+                    message=f"File download failed: status {response.status_code}",
+                )
+
+            content = response.content
+            logger.info(
+                "File downloaded successfully",
+                file_key=file_key,
+                size=len(content),
+            )
+
+            return content
+
+        except httpx.TimeoutException:
+            logger.error("File download timeout", file_key=file_key)
+            raise LarkError(message="File download timeout")
+        except httpx.RequestError as exc:
+            logger.error("File download request error", file_key=file_key, error=str(exc))
+            raise LarkError(message=f"File download request failed: {str(exc)}")
+
+    async def get_file_info(
+        self,
+        file_key: str,
+    ) -> Dict:
+        """
+        Get file metadata.
+
+        API: /open-apis/im/v1/files/{file_key}
+
+        Args:
+            file_key: Lark file key
+
+        Returns:
+            Dict: File metadata (name, size, type, etc.)
+        """
+        endpoint = f"/open-apis/im/v1/files/{file_key}"
+        result = await self.request("GET", endpoint)
+
+        if result.get("code") != 0:
+            logger.warning(
+                "Get file info failed",
+                file_key=file_key,
+                code=result.get("code"),
+                msg=result.get("msg"),
+            )
+            return {}
+
+        return result.get("data", {})
+
+    async def upload_file(
+        self,
+        file_content: bytes,
+        file_name: str,
+        file_type: str = "stream",
+    ) -> Dict:
+        """
+        Upload file to Lark.
+
+        API: /open-apis/im/v1/files/upload
+
+        Args:
+            file_content: File bytes
+            file_name: File name
+            file_type: File type (stream, image, etc.)
+
+        Returns:
+            Dict: Upload result with file_key
+        """
+        client = await self._get_client()
+        token = await self.get_tenant_token()
+
+        url = f"{self.api_domain}/open-apis/im/v1/files/upload"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+        }
+
+        files = {
+            "file": (file_name, file_content),
+        }
+        data = {
+            "file_type": file_type,
+        }
+
+        logger.info("Uploading file to Lark", file_name=file_name)
+
+        try:
+            response = await client.post(
+                url,
+                headers=headers,
+                files=files,
+                data=data,
+                timeout=60.0,
+            )
+
+            result = response.json()
+
+            if result.get("code") != 0:
+                logger.error(
+                    "File upload failed",
+                    file_name=file_name,
+                    code=result.get("code"),
+                    msg=result.get("msg"),
+                )
+                raise LarkError(
+                    message=f"File upload failed: {result.get('msg')}",
+                    code=result.get("code"),
+                )
+
+            logger.info(
+                "File uploaded successfully",
+                file_name=file_name,
+                file_key=result.get("data", {}).get("file_key"),
+            )
+
+            return result.get("data", {})
+
+        except httpx.TimeoutException:
+            raise LarkError(message="File upload timeout")
+        except httpx.RequestError as exc:
+            raise LarkError(message=f"File upload request failed: {str(exc)}")
+
+    async def download_image(
+        self,
+        image_key: str,
+    ) -> bytes:
+        """
+        Download image from Lark.
+
+        API: /open-apis/im/v1/images/{image_key}/download
+
+        Args:
+            image_key: Lark image key
+
+        Returns:
+            bytes: Image content
+        """
+        client = await self._get_client()
+        token = await self.get_tenant_token()
+
+        url = f"{self.api_domain}/open-apis/im/v1/images/{image_key}/download"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+        }
+
+        logger.info("Downloading image from Lark", image_key=image_key)
+
+        try:
+            response = await client.get(url, headers=headers, timeout=30.0)
+
+            if response.status_code != 200:
+                raise LarkError(
+                    message=f"Image download failed: status {response.status_code}",
+                )
+
+            return response.content
+
+        except httpx.TimeoutException:
+            raise LarkError(message="Image download timeout")
+        except httpx.RequestError as exc:
+            raise LarkError(message=f"Image download request failed: {str(exc)}")
+
 
 # Global client instance
 _lark_client: Optional[LarkClient] = None

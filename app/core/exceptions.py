@@ -577,3 +577,33 @@ class CostNotFoundError(APIException):
             trace_id=trace_id,
             details=details
         )
+
+
+# ==================== v1.3.0新增：服务层异常 ====================
+
+
+class ServiceError(Exception):
+    """
+    服务层异常基类.
+
+    用于服务层的通用错误，不依赖于APIException。
+    """
+
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        self.code = code
+        self.message = message
+        self.details = details or {}
+        super().__init__(message)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典."""
+        return {
+            "code": self.code,
+            "message": self.message,
+            "details": self.details,
+        }

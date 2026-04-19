@@ -316,6 +316,7 @@ class DataSource(str, Enum):
     EXCEL_IMPORT = "excel_import"     # Excel模板导入
     LARK_SHEET_SYNC = "lark_sheet_sync"  # 飞书在线表格同步
     SYSTEM_GENERATED = "system_generated"  # 系统自动生成
+    DOCUMENT_PARSE = "document_parse"  # 文档智能解析（v1.3.0新增）
 
 
 class SyncMode(str, Enum):
@@ -366,3 +367,118 @@ class WBSStatus(str, Enum):
     DRAFT = "draft"
     PUBLISHED = "published"
     ARCHIVED = "archived"
+
+
+# ============================================
+# v1.3.0新增：文档智能解析相关枚举
+# ============================================
+
+
+class DocumentParseStatus(str, Enum):
+    """文档解析状态枚举."""
+
+    PENDING = "pending"           # 待处理
+    DOWNLOADING = "downloading"   # 下载文件
+    PARSING = "parsing"           # 解析内容
+    CLASSIFYING = "classifying"   # 分类识别
+    EXTRACTING = "extracting"     # 信息提取
+    VALIDATING = "validating"     # 数据校验
+    IMPORTING = "importing"       # 入库中
+    CONFIRMING = "confirming"     # 待确认
+    COMPLETED = "completed"       # 已完成
+    FAILED = "failed"             # 失败
+    CANCELLED = "cancelled"       # 已取消
+
+
+class DocumentImportStatus(str, Enum):
+    """文档入库状态枚举."""
+
+    PENDING = "pending"           # 待入库
+    SUCCESS = "success"           # 入库成功
+    PARTIAL = "partial"           # 部分成功
+    FAILED = "failed"             # 入库失败
+    CONFLICT = "conflict"         # 存在冲突
+    SKIPPED = "skipped"           # 已跳过
+
+
+class DocumentCategory(str, Enum):
+    """文档大类枚举."""
+
+    PROJECT_DOC = "project_doc"       # 项目文档
+    MANAGEMENT_DOC = "management_doc" # 管理文档
+    EXTERNAL_DOC = "external_doc"     # 外部文档
+    OTHER = "other"                   # 其他
+
+
+class ProjectPhase(str, Enum):
+    """项目阶段枚举（用于文档分类）."""
+
+    PRE_INITIATION = "pre_initiation"  # 预立项阶段
+    INITIATION = "initiation"          # 立项阶段
+    EXECUTION = "execution"            # 执行阶段
+    CLOSING = "closing"                # 收尾阶段
+    FULL_CYCLE = "full_cycle"          # 全周期文档
+    NONE = "none"                      # 无特定阶段
+
+
+class DocumentSubtype(str, Enum):
+    """文档子类型枚举."""
+
+    # 预立项阶段
+    PROJECT_PROPOSAL = "project_proposal"      # 项目建议书
+    FEASIBILITY_REPORT = "feasibility_report"  # 可行性研究报告
+    INITIATION_APPROVAL = "initiation_approval"  # 立项批复
+
+    # 立项阶段
+    INITIATION_DOC = "initiation_doc"          # 立项审批材料
+    PROJECT_CHARTER = "project_charter"        # 项目章程
+
+    # 执行阶段
+    WEEKLY_REPORT = "weekly_report"            # 周报
+    MEETING_MINUTES = "meeting_minutes"        # 会议纪要
+    TASK_REPORT = "task_report"                # 任务报告
+    PROGRESS_REPORT = "progress_report"        # 进度报告
+
+    # 收尾阶段
+    ACCEPTANCE_REPORT = "acceptance_report"    # 验收报告
+    SUMMARY_REPORT = "summary_report"          # 项目总结
+    REVIEW_DOC = "review_doc"                  # 复盘文档
+
+    # 全周期
+    WBS = "wbs"                                # WBS工作分解
+    RISK_REGISTER = "risk_register"            # 风险登记表
+    COST_REPORT = "cost_report"                # 成本报告
+    MILESTONE_PLAN = "milestone_plan"          # 里程碑计划
+
+    # 管理文档
+    POLICY_DOC = "policy_doc"                  # 管理制度
+    STANDARD_DOC = "standard_doc"              # 操作规范
+    PROCESS_DOC = "process_doc"                # 流程文档
+
+    # 外部文档
+    CONTRACT = "contract"                      # 合同文件
+    SUPPLIER_DOC = "supplier_doc"              # 供应商材料
+    EXTERNAL_REPORT = "external_report"        # 外部报告
+
+    # 其他
+    UNKNOWN = "unknown"                        # 未识别类型
+
+
+class ConflictResolutionStrategy(str, Enum):
+    """冲突解决策略枚举."""
+
+    MANUAL = "manual"               # 人工确认
+    LAST_WRITE = "last_write"       # 时间戳最新优先
+    SOURCE_PRIORITY = "source_priority"  # 来源优先级
+    USER_DECISION = "user_decision" # 用户决定
+
+
+class ConfirmationAction(str, Enum):
+    """用户确认动作枚举."""
+
+    CONFIRM = "confirm"             # 确认入库
+    EDIT = "edit"                   # 修改数据
+    CANCEL = "cancel"               # 取消
+    RESOLVE_NEW = "resolve_new"     # 冲突采用新数据
+    RESOLVE_EXISTING = "resolve_existing"  # 冲突保留原数据
+    RESOLVE_MANUAL = "resolve_manual"  # 冲突人工编辑
