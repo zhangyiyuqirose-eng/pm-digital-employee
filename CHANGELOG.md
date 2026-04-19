@@ -2,6 +2,141 @@
 
 ---
 
+## [v1.3.0] - 2026-04-19 - 文档智能解析与自动录入功能
+
+### 变更说明 📋
+
+本次版本新增第4种数据录入渠道：全文档智能解析与自动录入功能。用户通过飞书发送项目管理文档，系统自动解析、分类、提取数据并入库。
+
+### 核心功能 ✨
+
+**文档智能解析流程**：
+```
+文件下载 → 格式解析 → 文档分类 → 数据提取 → 数据导入 → 用户反馈
+```
+
+**支持的文档格式（12种）**：
+- 文档类：DOCX、PDF、TXT、MD
+- 表格类：XLSX、XLS、CSV
+- 演示类：PPTX
+- 图片类：JPG、PNG、BMP（OCR placeholder）
+
+**智能文档分类（7大类）**：
+- 项目周报（weekly_report）
+- 会议纪要（meeting_minutes）
+- WBS工作分解（wbs）
+- 风险登记表（risk_register）
+- 里程碑计划（milestone_plan）
+- 成本报告（cost_report）
+- 其他文档（other）
+
+**置信度分级处理机制**：
+| 置信度范围 | 处理策略 | 用户交互 |
+|-----------|---------|---------|
+| >= 95% | 自动入库 | 发送成功卡片 |
+| 80%-94% | 需确认 | 发送确认卡片，用户可修正 |
+| 60%-79% | 需补参 | 发送补参卡片，用户补充信息 |
+| < 60% | 解析失败 | 发送错误卡片，提示重试 |
+
+### 新增服务 🌱
+
+**核心服务（5个）**：
+
+| 服务 | 文件 | 功能说明 |
+|------|------|----------|
+| FileParserService | `app/services/file_parser_service.py` | 多格式文档解析，提取文本和表格 |
+| DocumentClassifierService | `app/services/document_classifier_service.py` | 文档智能分类和项目匹配 |
+| DataExtractorService | `app/services/data_extractor_service.py` | LLM数据提取，字段置信度评估 |
+| DataImportService | `app/services/data_import_service.py` | 数据入库，集成ValidationService |
+| DocumentParseService | `app/services/document_parse_service.py` | 主编排服务，协调完整流程 |
+
+### 新增Skill插件 🎯
+
+| Skill | 文件 | 功能说明 |
+|------|------|----------|
+| DocumentParseSkill | `app/skills/document_parse_skill.py` | 处理文件解析请求，构建飞书卡片 |
+| DocumentConfirmSkill | `app/skills/document_parse_skill.py` | 处理用户确认操作 |
+
+### 新增数据模型 📊
+
+| 模型 | 文件 | 功能说明 |
+|------|------|----------|
+| DocumentParseRecord | `app/domain/models/document_parse_record.py` | 解析记录表，40+字段跟踪完整流程 |
+
+### 新增Prompt模板 📝
+
+| 模板 | 文件 | 功能说明 |
+|------|------|----------|
+| document_classification | `prompts/document_classification.md` | 文档智能分类Prompt |
+| weekly_report_extraction | `prompts/weekly_report_extraction.md` | 周报数据提取Prompt |
+| meeting_minutes_extraction | `prompts/meeting_minutes_extraction.md` | 会议纪要提取Prompt |
+| wbs_extraction | `prompts/wbs_extraction.md` | WBS数据提取Prompt |
+| risk_extraction | `prompts/risk_extraction.md` | 风险登记表提取Prompt |
+| document_extraction | `prompts/document_extraction.md` | 通用数据提取Prompt |
+
+### 新增枚举 🎯
+
+| 枚举 | 取值 | 说明 |
+|------|------|----------|
+| DocumentCategory | weekly_report/meeting_minutes/wbs/risk_register/milestone_plan/cost_report/other | 文档大类分类 |
+| ParseStatus | pending/parsing/classifying/extracting/importing/completed/failed | 解析状态 |
+| ImportStatus | pending/imported/failed/conflict/skipped/cancelled | 入库状态 |
+| ConfirmationAction | confirm_import/reject_import/modify_data/cancel/skip | 确认动作 |
+| DocumentParseErrorCode | ... | 解析错误类型 |
+| ProjectMatchType | explicit/inferred/filename/context/none | 项目匹配类型 |
+| EntityConfidenceLevel | high/medium/low | 实体置信度级别 |
+
+**扩展枚举**：
+- DataSource 新增 `document_parse` 值
+
+### 修改文件 🔧
+
+| 文件 | 修改内容 |
+|------|----------|
+| `app/integrations/lark/client.py` | 新增文件下载/上传/获取信息API（download_file/upload_file/get_file_info/download_image） |
+| `app/api/lark_webhook.py` | 新增file/image/media消息类型处理，文件大小限制(50MB) |
+| `app/ai/prompt_manager.py` | 新增6个文档解析模板默认定义 |
+| `app/domain/enums.py` | 新增7个枚举类型，扩展DataSource |
+| `app/core/exceptions.py` | 新增ServiceError异常基类 |
+| `app/skills/__init__.py` | 注册DocumentParseSkill和DocumentConfirmSkill |
+
+### 数据库变更 🗃️
+
+- 新增表：`document_parse_records`
+- 新增索引：file_key、inferred_project_id、parse_status、sender_id、created_at、requires_confirmation
+- 数据库迁移：`alembic/versions/002_document_parse.py`
+
+### 测试验证 🧪
+
+| 测试文件 | 测试数 | 结果 |
+|---------|--------|------|
+| test_file_parser_service.py | 18 | ✅ 全通过 |
+| test_document_classifier_service.py | 19 | ✅ 全通过 |
+| **总计** | **456** | ✅ 100%通过 |
+
+### 代码统计 📊
+
+- 新增文件：16个（7服务+2Skill+1模型+1迁移+6Prompt）
+- 修改文件：7个
+- 新增代码行：5957行
+- 测试代码行：800行
+
+### 用户操作说明 📖
+
+**使用流程**：
+1. 用户在飞书发送项目管理文档
+2. 系统自动解析并返回处理结果卡片
+3. 根据置信度，用户可能需要确认或补充信息
+4. 数据自动入库到对应业务表
+
+**支持文档类型示例**：
+- 项目周报：提取任务进度、风险、下周计划
+- 会议纪要：提取会议主题、参会人、待办事项
+- WBS：提取任务分解、工期估算、依赖关系
+- 风险登记表：提取风险描述、等级、应对措施
+
+---
+
 ## [v1.2.0] - 2026-04-19 - 多源数据录入数据模型设计
 
 ### 变更说明 📋
