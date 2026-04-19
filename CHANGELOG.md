@@ -2,68 +2,109 @@
 
 ---
 
-## [v1.2.0] - 2026-04-19 - 多源数据录入数据模型设计
+## [v1.2.0] - 2026-04-19 - 多源数据录入完整实现
 
 ### 变更说明 📋
 
-本次版本新增多源数据录入功能的数据模型设计，为后续开发奠定基础。
+本次版本实现三大录入方式（飞书卡片、Excel导入、飞书表格同步）完整功能。
 
-### 新增模型 🌱
+### 新增功能 🎉
 
-**核心数据模型（5个）：**
+**三大录入方式：**
+1. 飞书卡片录入 - 完全保留原有功能
+2. Excel模板导入 - 新增批量导入导出
+3. 飞书在线表格同步 - 新增双向实时同步
 
-| 模型 | 文件 | 功能说明 |
+**七大功能模块全覆盖：**
+- 项目总览：归档恢复、报告导出（Excel/PDF）
+- 任务管理：依赖关系设置、风险自动同步
+- WBS分解：版本管理、自动生成任务、可视化（树形/甘特图）
+- 成本管理：成本分析、超支预警、审批集成
+- 风险预警：自动通知、闭环管理
+- 周报生成：自动提取数据、审批集成
+- 会议纪要：行动项自动同步到任务
+
+### 新增Services（10个）
+
+| Service | 行数 | 功能 |
+|---------|------|------|
+| ExcelService | 876 | 模板生成、数据解析、批量导入 |
+| ValidationService | 885 | 统一校验（格式/必填/类型/业务规则） |
+| SyncEngine | 724 | 同步引擎（冲突检测、版本管理） |
+| LarkSheetSyncService | 1100 | 飞书表格双向同步 |
+| NotificationService | 670 | 任务通知（分配/状态/延期预警） |
+| WBSService | 1385 | WBS版本管理、任务同步 |
+| WeeklyReportService | 706 | 周报自动生成、审批集成 |
+| TaskService扩展 | 1264 | 依赖关系、风险同步 |
+| ProjectService扩展 | 361 | 归档恢复、报告导出 |
+| CostService扩展 | 1144 | 成本分析、超支预警 |
+
+### 新增API端点（30个）
+
+| 路径 | 接口数 | 功能 |
+|------|--------|------|
+| /api/v1/excel/* | 4 | 模板下载、导入导出 |
+| /api/v1/cost/* | 5 | 成本导入、分析、预警 |
+| /api/v1/risk/* | 4 | 风险导入、批量更新、统计 |
+| /api/v1/wbs/* | 12 | WBS导入导出、版本管理、可视化 |
+| /api/v1/lark-sheet/* | 5 | 表格绑定、同步、Webhook |
+
+### 新增数据模型（8个）
+
+| 模型 | 功能 |
+|------|------|
+| ExcelImportLog | Excel导入详细日志 |
+| DataSyncLog | 统一数据同步日志 |
+| LarkSheetBinding | 飞书表格绑定配置 |
+| DataVersion | 数据版本历史（支持回滚） |
+| DataConflict | 数据冲突记录 |
+| WeeklyReport | 项目周报 |
+| MeetingMinutes | 会议纪要 |
+| WBSVersion | WBS版本管理 |
+
+### 新增Integrations
+
+| 文件 | 行数 | 功能 |
+|------|------|------|
+| sheet_webhook.py | 16253 | 飞书表格Webhook处理 |
+| message_sender.py | 22643 | 消息通知、审批集成 |
+
+### 新增Tasks
+
+| 文件 | 功能 |
+|------|------|
+| excel_tasks.py | 异步Excel导入 |
+| lark_sheet_sync_tasks.py | 定时同步、失败重试 |
+
+### 新增Tests（4个）
+
+| 文件 | 行数 | 覆盖内容 |
 |------|------|----------|
-| ExcelImportLog | `app/domain/models/excel_import_log.py` | Excel导入详细日志，记录校验结果、行级错误 |
-| DataSyncLog | `app/domain/models/data_sync_log.py` | 统一数据同步日志，三种录入方式共用 |
-| LarkSheetBinding | `app/domain/models/lark_sheet_binding.py` | 飞书表格绑定配置，字段映射、同步频率 |
-| DataVersion | `app/domain/models/data_version.py` | 数据版本历史，支持回滚和历史查询 |
-| DataConflict | `app/domain/models/data_conflict.py` | 数据冲突记录，支持人工解决 |
+| test_validation_service.py | 673 | 校验服务 |
+| test_excel_service.py | 571 | Excel服务 |
+| test_sync_engine.py | 753 | 同步引擎 |
+| test_lark_sheet_sync.py | 811 | 飞书表格同步 |
 
-**业务模型（3个）：**
+### 新增Docs
 
-| 模型 | 文件 | 功能说明 |
-|------|------|----------|
-| WeeklyReport | `app/domain/models/weekly_report.py` | 项目周报，支持多源录入 |
-| MeetingMinutes | `app/domain/models/meeting_minutes.py` | 会议纪要，自动提取行动项 |
-| WBSVersion | `app/domain/models/wbs_version.py` | WBS版本管理，支持历史回滚 |
-
-### 新增枚举 🎯
-
-| 枚举 | 取值 | 说明 |
-|------|------|----------|
-| DataSource | lark_card/excel_import/lark_sheet_sync | 数据来源类型 |
-| SyncMode | to_sheet/from_sheet/bidirectional | 同步模式 |
-| SyncFrequency | realtime/5min/15min/1hour | 同步频率 |
-| ImportMode | full_replace/incremental_update/append_only | Excel导入模式 |
-| WeeklyReportStatus | draft/submitted/approved/archived | 周报状态 |
-| MeetingStatus | draft/confirmed/archived | 会议纪要状态 |
-| WBSStatus | draft/published/archived | WBS状态 |
-
-### 设计要点 📝
-
-- **三种录入方式统一数据校验**：所有录入方式数据写入核心数据库前统一校验
-- **最终一致性模型**：采用最后写入者优先策略，保留冲突记录
-- **版本管理**：所有核心数据记录版本号，支持历史版本查询和回滚
-- **完整日志**：记录所有同步操作，便于审计和问题排查
+| 文件 | 内容 |
+|------|------|
+| v1.2-用户操作手册.md | 三种录入方式操作指南 |
 
 ### 代码统计 📊
 
-- 新增文件：8个
-- 修改文件：3个
-- 新增代码行：1678行
+- 新增代码行：**21473行**
+- 新增文件：**37个**
+- 新增API接口：**30个**
 
-### 待开发功能 ⏳
+### 技术亮点 ⭐
 
-| 模块 | 状态 |
-|------|------|
-| 数据库迁移脚本 | 待开发 |
-| Service层开发 | 待开发 |
-| API层开发 | 待开发 |
-| Excel模板文件 | 待生成 |
-| 飞书Webhook集成 | 待开发 |
-| 测试用例 | 待编写 |
-| 用户操作手册 | 待编写 |
+- 最终一致性数据同步模型
+- 自动冲突检测和解决机制
+- 数据版本管理和历史回滚
+- WBS到任务自动同步
+- 周报自动提取生成
+- 完整日志审计追踪
 
 ---
 
