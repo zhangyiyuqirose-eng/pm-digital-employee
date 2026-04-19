@@ -8,6 +8,9 @@ from app.services.task_service import TaskService
 from app.services.risk_service import RiskService
 from app.services.cost_service import CostService
 from app.services.milestone_service import MilestoneService
+from app.services.excel_service import ExcelService
+from app.services.validation_service import ValidationService
+from app.services.wbs_service import WBSService
 
 __all__ = [
     "ProjectService",
@@ -15,4 +18,7 @@ __all__ = [
     "RiskService",
     "CostService",
     "MilestoneService",
+    "ExcelService",
+    "ValidationService",
+    "WBSService",
 ]

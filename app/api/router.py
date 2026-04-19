@@ -11,6 +11,8 @@ from app.api.health import router as health_router
 from app.api.lark_webhook import router as lark_webhook_router, internal_router as internal_router
 from app.api.lark_callback import router as lark_callback_router
 from app.api.data_management import data_router
+from app.api.excel import excel_router
+from app.api.wbs import wbs_router
 
 # Create main router
 api_router = APIRouter()
@@ -29,6 +31,12 @@ api_router.include_router(lark_callback_router, tags=["Feishu Callback"])
 
 # Register data management routes
 api_router.include_router(data_router, tags=["Data Management"])
+
+# Register Excel import/export routes
+api_router.include_router(excel_router, tags=["Excel Import/Export"])
+
+# Register WBS management routes
+api_router.include_router(wbs_router, tags=["WBS Management"])
 
 
 # API v1路由
@@ -132,6 +140,24 @@ async def list_cost_actuals(project_id: str = None, skip: int = 0, limit: int = 
         "limit": limit,
     }
 
+
+@api_v1_router.get("/wbs/templates", tags=["WBS"])
+async def get_wbs_templates():
+    """获取WBS模板."""
+    return {
+        "templates": [
+            {
+                "name": "标准WBS",
+                "description": "适用于一般项目的WBS结构",
+                "levels": ["项目", "任务", "子任务"],
+            },
+            {
+                "name": "软件开发WBS",
+                "description": "适用于软件开发项目的WBS结构",
+                "levels": ["项目", "阶段", "任务", "活动"],
+            },
+        ],
+    }
 
 @api_v1_router.get("/milestones", tags=["Milestones"])
 async def list_milestones(project_id: str = None, skip: int = 0, limit: int = 100):
