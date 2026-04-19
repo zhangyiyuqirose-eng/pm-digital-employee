@@ -23,6 +23,11 @@ if TYPE_CHECKING:
     from app.domain.models.document import ProjectDocument
     from app.domain.models.user_project_role import UserProjectRole
     from app.domain.models.group_project_binding import GroupProjectBinding
+    # v1.2.0新增
+    from app.domain.models.weekly_report import WeeklyReport
+    from app.domain.models.meeting_minutes import MeetingMinutes
+    from app.domain.models.wbs_version import WBSVersion
+    from app.domain.models.lark_sheet_binding import LarkSheetBinding
 
 
 class Project(Base, AuditMixin):
@@ -176,6 +181,46 @@ class Project(Base, AuditMixin):
         comment="是否活跃",
     )
 
+    # v1.2.0新增：多源数据录入扩展字段
+    data_source: Mapped[Optional[str]] = mapped_column(
+        String(32),
+        nullable=True,
+        default="lark_card",
+        comment="数据来源",
+    )
+
+    external_id: Mapped[Optional[str]] = mapped_column(
+        String(128),
+        nullable=True,
+        comment="外部系统ID（飞书表格行ID等）",
+    )
+
+    sync_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        comment="同步版本号",
+    )
+
+    last_sync_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="最后同步时间",
+    )
+
+    archived: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="是否已归档",
+    )
+
+    archived_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="归档时间",
+    )
+
     # 关联关系
     tasks: Mapped[List["Task"]] = relationship(
         "Task",
@@ -221,6 +266,31 @@ class Project(Base, AuditMixin):
 
     group_bindings: Mapped[List["GroupProjectBinding"]] = relationship(
         "GroupProjectBinding",
+        back_populates="project",
+        lazy="selectin",
+    )
+
+    # v1.2.0新增：多源数据录入关联关系
+    weekly_reports: Mapped[List["WeeklyReport"]] = relationship(
+        "WeeklyReport",
+        back_populates="project",
+        lazy="selectin",
+    )
+
+    meeting_minutes: Mapped[List["MeetingMinutes"]] = relationship(
+        "MeetingMinutes",
+        back_populates="project",
+        lazy="selectin",
+    )
+
+    wbs_versions: Mapped[List["WBSVersion"]] = relationship(
+        "WBSVersion",
+        back_populates="project",
+        lazy="selectin",
+    )
+
+    lark_sheet_bindings: Mapped[List["LarkSheetBinding"]] = relationship(
+        "LarkSheetBinding",
         back_populates="project",
         lazy="selectin",
     )

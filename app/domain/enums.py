@@ -302,3 +302,67 @@ class IntegrationSystem(str, Enum):
     DEVOPS_SYSTEM = "devops_system"  # DevOps System
     DEFECT_SYSTEM = "defect_system"  # Defect System
     OA_SYSTEM = "oa_system"  # OA Approval System
+
+
+# ============================================
+# v1.2.0新增：多源数据录入相关枚举
+# ============================================
+
+
+class DataSource(str, Enum):
+    """数据来源类型枚举."""
+
+    LARK_CARD = "lark_card"           # 飞书卡片录入
+    EXCEL_IMPORT = "excel_import"     # Excel模板导入
+    LARK_SHEET_SYNC = "lark_sheet_sync"  # 飞书在线表格同步
+    SYSTEM_GENERATED = "system_generated"  # 系统自动生成
+
+
+class SyncMode(str, Enum):
+    """同步模式枚举."""
+
+    TO_SHEET = "to_sheet"             # 单向：系统→飞书表格
+    FROM_SHEET = "from_sheet"         # 单向：飞书表格→系统
+    BIDIRECTIONAL = "bidirectional"   # 双向同步
+
+
+class SyncFrequency(str, Enum):
+    """同步频率枚举."""
+
+    REALTIME = "realtime"             # 实时（Webhook触发）
+    FIVE_MINUTES = "5min"             # 每5分钟
+    FIFTEEN_MINUTES = "15min"         # 每15分钟
+    ONE_HOUR = "1hour"                # 每小时
+
+
+class ImportMode(str, Enum):
+    """Excel导入模式枚举."""
+
+    FULL_REPLACE = "full_replace"     # 全量替换
+    INCREMENTAL_UPDATE = "incremental_update"  # 增量更新
+    APPEND_ONLY = "append_only"       # 仅追加
+
+
+class WeeklyReportStatus(str, Enum):
+    """周报状态枚举."""
+
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    APPROVED = "approved"
+    ARCHIVED = "archived"
+
+
+class MeetingStatus(str, Enum):
+    """会议纪要状态枚举."""
+
+    DRAFT = "draft"
+    CONFIRMED = "confirmed"
+    ARCHIVED = "archived"
+
+
+class WBSStatus(str, Enum):
+    """WBS状态枚举."""
+
+    DRAFT = "draft"
+    PUBLISHED = "published"
+    ARCHIVED = "archived"
