@@ -464,6 +464,59 @@ class LarkService:
             text=content,
         )
 
+    # ==================== Mention helpers ====================
+
+    @staticmethod
+    def mention_user(user_id: str) -> str:
+        """
+        Generate @user tag for Lark messages.
+
+        Args:
+            user_id: User open_id
+
+        Returns:
+            str: Mention tag string
+        """
+        return f"<at user_id='{user_id}'></at>"
+
+    @staticmethod
+    def mention_all() -> str:
+        """
+        Generate @all tag for Lark messages.
+
+        Returns:
+            str: Mention all tag string
+        """
+        return "<at user_id='all'></at>"
+
+    @staticmethod
+    def format_text_with_mentions(
+        text: str,
+        mention_users: Optional[List[str]] = None,
+        mention_all: bool = False,
+    ) -> str:
+        """
+        Format text with user mentions.
+
+        Args:
+            text: Base text content
+            mention_users: List of user IDs to mention
+            mention_all: Whether to @all
+
+        Returns:
+            str: Formatted text with mentions
+        """
+        mentions = []
+        if mention_all:
+            mentions.append(LarkService.mention_all())
+        if mention_users:
+            for user_id in mention_users:
+                mentions.append(LarkService.mention_user(user_id))
+
+        if mentions:
+            return f"{text}\n{chr(10).join(mentions)}"
+        return text
+
 
 # Global service instance
 _lark_service: Optional[LarkService] = None

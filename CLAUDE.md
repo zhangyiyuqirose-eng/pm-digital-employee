@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 PM Digital Employee is a **Lark (飞书)**-based project management intelligent assistant for a state-owned bank's technology subsidiary project management department. **Lark is the ONLY user interaction entrypoint.**
 
+Current version: v1.2.0 (see VERSION.txt and CHANGELOG.md for release history).
+
 ## Commands
 
 ### Development
@@ -84,7 +86,7 @@ alembic revision --autogenerate -m "description"
 ├─────────────────────────────────────────────────────────────────┤
 │ 6. AI能力层      │ LLM Gateway、Prompt Manager、RAG、安全防护   │
 ├─────────────────────────────────────────────────────────────────┤
-│ 7. Skill插件层   │ 13个核心Skill，BaseSkill规范，manifest      │
+│ 7. Skill插件层   │ 10个核心Skill，BaseSkill规范，manifest      │
 ├─────────────────────────────────────────────────────────────────┤
 │ 8. 集成适配层    │ 项目管理、财务、DevOps、OA、飞书适配器      │
 ├─────────────────────────────────────────────────────────────────┤
@@ -96,11 +98,16 @@ alembic revision --autogenerate -m "description"
 
 - `app/api/` - FastAPI endpoints (Lark webhook/callback at `lark_webhook.py`, `lark_callback.py`)
 - `app/orchestrator/` - Core orchestration: intent routing (`intent_router.py`), dialog state machine (`dialog_state.py`), skill registry (`skill_registry.py`)
-- `app/skills/` - 13 Skill implementations inheriting from `BaseSkill`
+- `app/skills/` - 10 Skill implementations inheriting from `BaseSkill`
 - `app/integrations/lark/` - Lark integration: client, signature verification, message schemas
 - `app/ai/` - LLM gateway, prompt management, output parsing, safety guard
 - `app/rag/` - RAG pipeline: chunking, indexing, retrieval, reranking
 - `app/domain/models/` - SQLAlchemy domain models (Project, Task, Milestone, Risk, Cost, etc.)
+- `app/domain/models/excel_import_log.py` - Excel import logging (v1.2.0)
+- `app/domain/models/data_sync_log.py` - Unified data sync log (v1.2.0)
+- `app/domain/models/lark_sheet_binding.py` - Lark sheet binding config (v1.2.0)
+- `app/domain/models/data_version.py` - Data version history (v1.2.0)
+- `app/domain/models/data_conflict.py` - Data conflict records (v1.2.0)
 
 ## Core Flow: Orchestrator
 
@@ -118,6 +125,18 @@ The `Orchestrator` (`app/orchestrator/orchestrator.py`) coordinates the complete
 6. **Skill execution** → `_execute_skill()`
 
 ## Skill Development Pattern
+
+**Current Skills (10):**
+1. `project_overview` - 项目总览查询
+2. `weekly_report` - 项目周报生成
+3. `wbs_generation` - WBS自动生成
+4. `task_update` - 任务进度更新
+5. `risk_alert` - 风险识别与预警
+6. `cost_monitor` - 成本监控
+7. `policy_qa` - 制度规范答疑
+8. `project_query` - 项目情况咨询
+9. `meeting_minutes` - 会议纪要生成
+10. `compliance_review` - 预立项/立项材料合规初审
 
 Every Skill must:
 
@@ -180,7 +199,20 @@ Key configs in `.env`:
 
 ## Naming Conventions
 
-- Skill names: snake_case English (e.g., `project_overview`, `cost_estimation`)
-- Display names: Chinese (e.g., "项目总览查询", "成本估算")
+- Skill names: snake_case English (e.g., `project_overview`, `cost_monitor`)
+- Display names: Chinese (e.g., "项目总览查询", "成本监控")
 - Domain models: PascalCase classes
 - Database tables: lowercase with underscores
+
+## Multi-Source Data Entry (v1.2.0)
+
+Three data entry methods share unified validation:
+1. **Lark Card** - User submits via Lark interactive cards
+2. **Excel Import** - Batch import via Excel templates
+3. **Lark Sheet Sync** - Auto-sync from Lark sheets
+
+Key enums for data source handling:
+- `DataSource`: lark_card / excel_import / lark_sheet_sync
+- `SyncMode`: to_sheet / from_sheet / bidirectional
+- `SyncFrequency`: realtime / 5min / 15min / 1hour
+- `ImportMode`: full_replace / incremental_update / append_only

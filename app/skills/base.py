@@ -102,17 +102,6 @@ class BaseSkill(ABC):
         builder.set_version(cls.version)
         return builder.build()
 
-    @classmethod
-    def get_manifest(cls) -> SkillManifest:
-        """获取Skill Manifest."""
-        from app.orchestrator.skill_manifest import SkillManifestBuilder
-
-        builder = SkillManifestBuilder()
-        builder.set_name(cls.skill_name, cls.display_name)
-        builder.set_description(cls.description)
-        builder.set_version(cls.version)
-        return builder.build()
-
 
 class SkillRegistryMixin:
     """Skill注册混入类."""

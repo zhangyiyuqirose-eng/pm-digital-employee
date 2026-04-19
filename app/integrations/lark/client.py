@@ -11,6 +11,13 @@ import time
 from typing import Any, Dict, List, Optional
 
 import httpx
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+)
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -120,6 +127,13 @@ class LarkClient:
 
         return self._tenant_token
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type((httpx.TimeoutException, httpx.RequestError)),
+        before_sleep=before_sleep_log(logger, "WARNING"),
+        reraise=True,
+    )
     async def request(
         self,
         method: str,

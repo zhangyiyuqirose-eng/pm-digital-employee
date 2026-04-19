@@ -2,7 +2,7 @@
 PM Digital Employee - Skills Module
 项目经理数字员工系统 - Skill插件模块
 
-包含13个核心Skill实现。
+包含10个核心Skill实现，每个Skill独立文件。
 """
 
 from app.orchestrator.skill_manifest import (
@@ -19,15 +19,24 @@ from app.orchestrator.skill_manifest import (
     get_compliance_review_manifest,
 )
 
+# Module-level imports for Skill classes
+from app.skills.project_overview_skill import ProjectOverviewSkill
+from app.skills.weekly_report_skill import WeeklyReportSkill
+from app.skills.policy_qa_skill import PolicyQASkill
+from app.skills.task_update_skill import TaskUpdateSkill
+from app.skills.risk_alert_skill import RiskAlertSkill
+from app.skills.cost_monitor_skill import CostMonitorSkill
+from app.skills.additional_skills import (
+    WBSGenerationSkill,
+    ProjectQuerySkill,
+    MeetingMinutesSkill,
+    ComplianceReviewSkill,
+)
+
 
 def register_all_skills() -> None:
     """注册所有Skill到Registry."""
     from app.orchestrator.skill_registry import register_skill
-    from app.skills.project_overview_skill import ProjectOverviewSkill
-    from app.skills.weekly_report_skill import WeeklyReportSkill
-    from app.skills.policy_qa_skill import PolicyQASkill, TaskUpdateSkill, RiskAlertSkill, CostMonitorSkill
-    from app.skills.additional_skills import WBSGenerationSkill, ProjectQuerySkill, MeetingMinutesSkill, ComplianceReviewSkill
-    
 
     # Skill类映射
     skill_classes = {
@@ -61,4 +70,15 @@ __all__ = [
     "get_meeting_minutes_manifest",
     "get_compliance_review_manifest",
     "register_all_skills",
+    # Skill类导出
+    "ProjectOverviewSkill",
+    "WeeklyReportSkill",
+    "PolicyQASkill",
+    "TaskUpdateSkill",
+    "RiskAlertSkill",
+    "CostMonitorSkill",
+    "WBSGenerationSkill",
+    "ProjectQuerySkill",
+    "MeetingMinutesSkill",
+    "ComplianceReviewSkill",
 ]

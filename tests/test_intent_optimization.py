@@ -24,19 +24,17 @@ class TestKeywordMatching:
 
         router = IntentRouter()
 
-        # 精确关键词匹配测试
+        # 精确关键词匹配测试 - 使用实际存在的Skill
         test_cases = [
             ("项目总览", "project_overview"),
             ("生成周报", "weekly_report"),
             ("周报", "weekly_report"),
             ("更新任务", "task_update"),
             ("风险预警", "risk_alert"),
-            ("成本估算", "cost_estimation"),
-            ("EVM分析", "cost_monitoring"),
+            ("成本监控", "cost_monitor"),
             ("会议纪要", "meeting_minutes"),
             ("WBS", "wbs_generation"),
             ("合规初审", "compliance_review"),
-            ("成本核算", "cost_accounting"),
             ("制度问答", "policy_qa"),
         ]
 
@@ -52,14 +50,13 @@ class TestKeywordMatching:
 
         router = IntentRouter()
 
-        # 模糊匹配测试（用户输入包含关键词）
+        # 模糊匹配测试（用户输入包含关键词）- 使用实际存在的Skill
         test_cases = [
             ("请帮我查看项目总览信息", "project_overview"),
             ("我想生成一份周报", "weekly_report"),
             ("帮我更新一下任务进度", "task_update"),
             ("有什么风险需要预警吗", "risk_alert"),
-            ("帮我做个成本估算", "cost_estimation"),
-            ("给我做个EVM分析", "cost_monitoring"),
+            ("成本监控情况", "cost_monitor"),
             ("生成今天的会议纪要", "meeting_minutes"),
             ("帮我生成wbs分解", "wbs_generation"),
         ]

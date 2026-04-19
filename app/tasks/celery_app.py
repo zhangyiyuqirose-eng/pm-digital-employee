@@ -13,6 +13,7 @@ celery_app = Celery(
     backend=settings.celery_result_backend,
     include=[
         "app.tasks.report_tasks",
+        "app.tasks.tasks",
     ],
 )
 

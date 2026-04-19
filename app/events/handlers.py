@@ -2,16 +2,111 @@
 PM Digital Employee - Event Handlers
 项目经理数字员工系统 - 事件处理器
 
-定义各种事件的具体处理器。
+定义各种事件的具体处理器，支持@on_event装饰器模式。
 """
 
 import uuid
-from typing import Any, Dict, List
+from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from app.core.logging import get_logger
-from app.events.bus import Event, EventHandler, EventType
+from app.events.bus import Event, EventHandler, EventType, get_event_bus
 
 logger = get_logger(__name__)
+
+
+# ============================================
+# Decorator Pattern: @on_event
+# ============================================
+
+def on_event(
+    event_types: Union[EventType, List[EventType]],
+    source: Optional[str] = None,
+) -> Callable:
+    """
+    Event handler decorator.
+
+    Simplifies event handler registration with decorator syntax.
+
+    Args:
+        event_types: Single or list of event types to subscribe
+        source: Optional source identifier
+
+    Returns:
+        Decorated function
+
+    Example:
+        @on_event(EventType.RISK_DETECTED)
+        async def handle_risk(event: Event):
+            logger.info("Risk detected", risk_id=event.payload.get("risk_id"))
+
+        @on_event([EventType.TASK_CREATED, EventType.TASK_UPDATED])
+        async def handle_task_events(event: Event):
+            ...
+    """
+    if isinstance(event_types, EventType):
+        event_types = [event_types]
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        async def wrapper(event: Event) -> None:
+            try:
+                await func(event)
+            except Exception as e:
+                logger.error(
+                    "Event handler error",
+                    handler=func.__name__,
+                    event_type=event.event_type.value,
+                    error=str(e),
+                )
+
+        # Register to event bus
+        bus = get_event_bus()
+        for et in event_types:
+            bus.subscribe_callable(et, wrapper)
+            logger.debug(
+                "Handler registered via decorator",
+                handler=func.__name__,
+                event_type=et.value,
+            )
+
+        return wrapper
+
+    return decorator
+
+
+class EventHandlerRegistry:
+    """
+    Registry for decorated event handlers.
+
+    Tracks all handlers registered via @on_event decorator.
+    """
+
+    _registry: Dict[EventType, List[Callable]] = {}
+
+    @classmethod
+    def register(
+        cls,
+        event_type: EventType,
+        handler: Callable,
+    ) -> None:
+        """Register a handler."""
+        if event_type not in cls._registry:
+            cls._registry[event_type] = []
+        cls._registry[event_type].append(handler)
+
+    @classmethod
+    def get_handlers(
+        cls,
+        event_type: EventType,
+    ) -> List[Callable]:
+        """Get handlers for an event type."""
+        return cls._registry.get(event_type, [])
+
+    @classmethod
+    def clear(cls) -> None:
+        """Clear registry."""
+        cls._registry.clear()
 
 
 class RiskAlertHandler(EventHandler):

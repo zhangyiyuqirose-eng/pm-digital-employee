@@ -3,10 +3,11 @@ PM Digital Employee - Access Control Service
 项目经理数字员工系统 - 权限访问控制核心服务
 
 实现项目级权限校验、用户角色权限管理、Skill访问控制。
+基于RBAC权限矩阵，采用默认拒绝原则。
 """
 
 import uuid
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +19,51 @@ from app.domain.enums import PermissionAction, PermissionResource, UserRole
 from app.domain.models.user_project_role import UserProjectRole
 
 logger = get_logger(__name__)
+
+
+# ============================================
+# 权限矩阵定义（参考提示词Part 2.3标准）
+# ============================================
+
+PERMISSION_MATRIX: Dict[UserRole, Set[PermissionAction]] = {
+    UserRole.PROJECT_MANAGER: {
+        PermissionAction.READ,
+        PermissionAction.WRITE,
+        PermissionAction.SUBMIT,
+        PermissionAction.APPROVE,
+        PermissionAction.EXECUTE,
+        PermissionAction.MANAGE,
+        PermissionAction.DELETE,
+    },
+    UserRole.PM: {
+        PermissionAction.READ,
+        PermissionAction.WRITE,
+        PermissionAction.SUBMIT,
+        PermissionAction.EXECUTE,
+    },
+    UserRole.TECH_LEAD: {
+        PermissionAction.READ,
+        PermissionAction.WRITE,
+        PermissionAction.SUBMIT,
+        PermissionAction.EXECUTE,
+    },
+    UserRole.MEMBER: {
+        PermissionAction.READ,
+        PermissionAction.SUBMIT,
+    },
+    UserRole.AUDITOR: {
+        PermissionAction.READ,
+    },
+    UserRole.ADMIN: {
+        PermissionAction.READ,
+        PermissionAction.WRITE,
+        PermissionAction.SUBMIT,
+        PermissionAction.APPROVE,
+        PermissionAction.EXECUTE,
+        PermissionAction.MANAGE,
+        PermissionAction.DELETE,
+    },
+}
 
 
 class AccessControlService:
@@ -384,3 +430,218 @@ class AccessControlService:
         binding = result.scalar_one_or_none()
 
         return binding.project_id if binding else None
+
+    async def check_operation_permission(
+        self,
+        user_id: str,
+        project_id: uuid.UUID,
+        operation: PermissionAction,
+    ) -> bool:
+        """
+        检查用户是否有权执行特定操作.
+
+        Args:
+            user_id: 飞书用户ID
+            project_id: 项目ID
+            operation: 操作类型（PermissionAction枚举）
+
+        Returns:
+            bool: 是否有权限
+        """
+        # 1. 先检查项目访问权限
+        role = await self.get_user_project_role(user_id, project_id)
+        if role is None:
+            return False
+
+        # 2. 检查权限矩阵
+        allowed_actions = PERMISSION_MATRIX.get(role, set())
+        return operation in allowed_actions
+
+    async def check_permission_with_resource(
+        self,
+        user_id: str,
+        project_id: uuid.UUID,
+        resource: PermissionResource,
+        action: PermissionAction,
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        检查用户对特定资源的操作权限.
+
+        Args:
+            user_id: 飞书用户ID
+            project_id: 项目ID
+            resource: 资源类型
+            action: 操作类型
+
+        Returns:
+            Tuple[bool, Optional[str]]: (是否有权限, 拒绝原因)
+        """
+        return await self.verify_project_access(
+            user_id=user_id,
+            project_id=project_id,
+            resource=resource.value,
+            action=action.value,
+        )
+
+    async def invalidate_user_permissions(
+        self,
+        user_id: str,
+        project_id: uuid.UUID,
+    ) -> None:
+        """
+        清除用户权限缓存.
+
+        当用户角色变更时调用，清除所有相关缓存。
+
+        Args:
+            user_id: 飞书用户ID
+            project_id: 项目ID
+        """
+        if not self.redis_client:
+            return
+
+        patterns = [
+            f"user_role:{user_id}:{project_id}",
+            f"perm:project_access:{user_id}:{project_id}",
+            f"perm:operation:{user_id}:{project_id}:*",
+            f"perm:skill:{user_id}:{project_id}:*",
+            f"context:{user_id}:*",
+        ]
+
+        for pattern in patterns:
+            try:
+                # 删除匹配模式的缓存
+                keys = await self.redis_client.keys(pattern)
+                if keys:
+                    await self.redis_client.delete(*keys)
+            except Exception as e:
+                logger.warning(f"Failed to clear cache for pattern {pattern}: {e}")
+
+        logger.info(
+            "User permission cache invalidated",
+            user_id=user_id,
+            project_id=str(project_id),
+        )
+
+    async def grant_user_role(
+        self,
+        user_id: str,
+        project_id: uuid.UUID,
+        role: UserRole,
+        granted_by: str,
+    ) -> UserProjectRole:
+        """
+        授予用户项目角色.
+
+        Args:
+            user_id: 飞书用户ID
+            project_id: 项目ID
+            role: 角色
+            granted_by: 授权人
+
+        Returns:
+            UserProjectRole: 角色 record
+        """
+        from app.domain.models.user import User
+
+        # 查找用户
+        user_result = await self.session.execute(
+            select(User).where(User.feishu_user_id == user_id)
+        )
+        user = user_result.scalar_one_or_none()
+
+        if not user:
+            raise ValueError(f"用户不存在: {user_id}")
+
+        # 检查是否已有角色
+        existing = await self.session.execute(
+            select(UserProjectRole).where(
+                UserProjectRole.user_id == user.id,
+                UserProjectRole.project_id == project_id,
+            )
+        )
+        existing_role = existing.scalar_one_or_none()
+
+        if existing_role:
+            # 更新角色
+            existing_role.role = role
+            await self.session.commit()
+            # 清除缓存
+            await self.invalidate_user_permissions(user_id, project_id)
+            return existing_role
+
+        # 创建新角色
+        new_role = UserProjectRole(
+            user_id=user.id,
+            project_id=project_id,
+            role=role,
+        )
+        self.session.add(new_role)
+        await self.session.commit()
+
+        # 清除缓存
+        await self.invalidate_user_permissions(user_id, project_id)
+
+        logger.info(
+            "User role granted",
+            user_id=user_id,
+            project_id=str(project_id),
+            role=role.value,
+            granted_by=granted_by,
+        )
+
+        return new_role
+
+    async def revoke_user_access(
+        self,
+        user_id: str,
+        project_id: uuid.UUID,
+        revoked_by: str,
+    ) -> bool:
+        """
+        撤销用户的项目访问权限.
+
+        Args:
+            user_id: 飞书用户ID
+            project_id: 项目ID
+            revoked_by: 撤销人
+
+        Returns:
+            bool: 是否成功撤销
+        """
+        from app.domain.models.user import User
+
+        # 查找用户
+        user_result = await self.session.execute(
+            select(User).where(User.feishu_user_id == user_id)
+        )
+        user = user_result.scalar_one_or_none()
+
+        if not user:
+            return False
+
+        # 删除角色
+        result = await self.session.execute(
+            select(UserProjectRole).where(
+                UserProjectRole.user_id == user.id,
+                UserProjectRole.project_id == project_id,
+            )
+        )
+        role_record = result.scalar_one_or_none()
+
+        if role_record:
+            await self.session.delete(role_record)
+            await self.session.commit()
+
+            # 清除缓存
+            await self.invalidate_user_permissions(user_id, project_id)
+
+            logger.info(
+                "User access revoked",
+                user_id=user_id,
+                project_id=str(project_id),
+                revoked_by=revoked_by,
+            )
+            return True
+
+        return False
