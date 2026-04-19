@@ -2,6 +2,71 @@
 
 ---
 
+## [v1.2.0] - 2026-04-19 - 多源数据录入数据模型设计
+
+### 变更说明 📋
+
+本次版本新增多源数据录入功能的数据模型设计，为后续开发奠定基础。
+
+### 新增模型 🌱
+
+**核心数据模型（5个）：**
+
+| 模型 | 文件 | 功能说明 |
+|------|------|----------|
+| ExcelImportLog | `app/domain/models/excel_import_log.py` | Excel导入详细日志，记录校验结果、行级错误 |
+| DataSyncLog | `app/domain/models/data_sync_log.py` | 统一数据同步日志，三种录入方式共用 |
+| LarkSheetBinding | `app/domain/models/lark_sheet_binding.py` | 飞书表格绑定配置，字段映射、同步频率 |
+| DataVersion | `app/domain/models/data_version.py` | 数据版本历史，支持回滚和历史查询 |
+| DataConflict | `app/domain/models/data_conflict.py` | 数据冲突记录，支持人工解决 |
+
+**业务模型（3个）：**
+
+| 模型 | 文件 | 功能说明 |
+|------|------|----------|
+| WeeklyReport | `app/domain/models/weekly_report.py` | 项目周报，支持多源录入 |
+| MeetingMinutes | `app/domain/models/meeting_minutes.py` | 会议纪要，自动提取行动项 |
+| WBSVersion | `app/domain/models/wbs_version.py` | WBS版本管理，支持历史回滚 |
+
+### 新增枚举 🎯
+
+| 枚举 | 取值 | 说明 |
+|------|------|----------|
+| DataSource | lark_card/excel_import/lark_sheet_sync | 数据来源类型 |
+| SyncMode | to_sheet/from_sheet/bidirectional | 同步模式 |
+| SyncFrequency | realtime/5min/15min/1hour | 同步频率 |
+| ImportMode | full_replace/incremental_update/append_only | Excel导入模式 |
+| WeeklyReportStatus | draft/submitted/approved/archived | 周报状态 |
+| MeetingStatus | draft/confirmed/archived | 会议纪要状态 |
+| WBSStatus | draft/published/archived | WBS状态 |
+
+### 设计要点 📝
+
+- **三种录入方式统一数据校验**：所有录入方式数据写入核心数据库前统一校验
+- **最终一致性模型**：采用最后写入者优先策略，保留冲突记录
+- **版本管理**：所有核心数据记录版本号，支持历史版本查询和回滚
+- **完整日志**：记录所有同步操作，便于审计和问题排查
+
+### 代码统计 📊
+
+- 新增文件：8个
+- 修改文件：3个
+- 新增代码行：1678行
+
+### 待开发功能 ⏳
+
+| 模块 | 状态 |
+|------|------|
+| 数据库迁移脚本 | 待开发 |
+| Service层开发 | 待开发 |
+| API层开发 | 待开发 |
+| Excel模板文件 | 待生成 |
+| 飞书Webhook集成 | 待开发 |
+| 测试用例 | 待编写 |
+| 用户操作手册 | 待编写 |
+
+---
+
 ## [v1.1.0] - 2026-04-18 - 移除外部API Skill
 
 ### 变更说明 📋

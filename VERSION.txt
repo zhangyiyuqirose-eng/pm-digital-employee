@@ -1,8 +1,8 @@
 PM Digital Employee
 项目经理数字员工系统 - 飞书版
 
-版本: v1.1.0
-发布日期: 2026-04-18
+版本: v1.2.0
+发布日期: 2026-04-19
 
 核心功能（10个Skill）:
 1. 项目总览查询 - 查询项目整体状态、进度、里程碑、风险、成本
@@ -15,6 +15,12 @@ PM Digital Employee
 8. 项目情况咨询 - 回答项目具体情况相关问题
 9. 会议纪要生成 - 根据会议内容生成结构化纪要
 10. 预立项/立项材料合规初审 - 审核材料合规性
+
+v1.2.0变更说明:
+- 新增多源数据录入数据模型设计（v1.2.0基础）
+- 5个核心数据模型：ExcelImportLog、DataSyncLog、LarkSheetBinding、DataVersion、DataConflict
+- 3个业务模型：WeeklyReport、MeetingMinutes、WBSVersion
+- 6个新增枚举类型：DataSource、SyncMode、SyncFrequency、ImportMode等
 
 v1.1.0变更说明:
 - 删除了3个调用外部IT-Cost-System API的Skill（cost_estimation、cost_monitoring、cost_accounting）
