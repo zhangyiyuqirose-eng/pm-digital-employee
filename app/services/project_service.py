@@ -1,23 +1,31 @@
 """
 PM Digital Employee - Project Service
 项目经理数字员工系统 - 项目业务服务
+
+v1.2.0新增：项目归档、恢复、Excel导入、飞书表格同步、报告导出功能。
 """
 
 import uuid
+import json
 from datetime import datetime, timezone, date
+from decimal import Decimal
+from io import BytesIO
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import and_, select, func
+from sqlalchemy import and_, select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import ErrorCode, ProjectNotFoundError
+from app.core.exceptions import ErrorCode, ProjectNotFoundError, ParameterValidationError
 from app.core.logging import get_logger
 from app.domain.enums import ProjectStatus
 from app.domain.models.project import Project
 from app.domain.models.task import Task
 from app.domain.models.milestone import Milestone
 from app.domain.models.risk import ProjectRisk
+from app.domain.models.data_version import DataVersion
 from app.repositories.project_repository import ProjectRepository
+from app.services.excel_service import ExcelService
+from app.services.sync_engine import SyncEngine, SyncStatus
 
 logger = get_logger(__name__)
 

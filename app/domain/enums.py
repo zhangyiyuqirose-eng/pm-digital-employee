@@ -344,6 +344,15 @@ class ImportMode(str, Enum):
     APPEND_ONLY = "append_only"       # 仅追加
 
 
+class DependencyType(str, Enum):
+    """任务依赖类型枚举."""
+
+    FS = "fs"  # 完成-开始 (Finish-to-Start)
+    SS = "ss"  # 开始-开始 (Start-to-Start)
+    FF = "ff"  # 完成-完成 (Finish-to-Finish)
+    SF = "sf"  # 开始-完成 (Start-to-Finish)
+
+
 class WeeklyReportStatus(str, Enum):
     """周报状态枚举."""
 

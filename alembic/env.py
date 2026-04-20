@@ -8,9 +8,8 @@ PM Digital Employee - Alembic Environment Configuration
 import asyncio
 from logging.config import fileConfig
 
-from sqlalchemy import pool
+from sqlalchemy import pool, engine_from_config
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
@@ -28,12 +27,17 @@ from app.domain.models import *  # 导入所有模型
 # Alembic配置
 config = context.config
 
-# 从settings获取数据库URL并设置
+# 从环境变量或settings获取数据库URL
 # Alembic需要同步驱动，将asyncpg替换为普通psycopg2或使用postgresql://
-db_url = str(settings.database.url)
+db_url = os.environ.get("DATABASE_URL_SYNC", "")
+if not db_url:
+    db_url = str(settings.database.url)
 if "asyncpg" in db_url:
     # 替换asyncpg为同步驱动用于迁移
     db_url = db_url.replace("+asyncpg", "")
+# 如果是容器内postgres服务名，替换为宿主机可访问的地址
+if "postgres:5432" in db_url:
+    db_url = db_url.replace("postgres:5432", "localhost:15432")
 config.set_main_option("sqlalchemy.url", db_url)
 
 # 日志配置
@@ -92,9 +96,18 @@ def run_migrations_online() -> None:
     """
     在线模式运行迁移.
 
-    连接数据库执行迁移。
+    连接数据库执行迁移（同步模式）。
     """
-    asyncio.run(run_async_migrations())
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+
+    with connectable.connect() as connection:
+        do_run_migrations(connection)
+
+    connectable.dispose()
 
 
 if context.is_offline_mode():

@@ -29,10 +29,31 @@ v1.3.0变更说明:
 - 37个新单元测试，总计456个测试100%通过
 
 v1.2.0变更说明:
-- 新增多源数据录入数据模型设计（v1.2.0基础）
-- 5个核心数据模型：ExcelImportLog、DataSyncLog、LarkSheetBinding、DataVersion、DataConflict
-- 3个业务模型：WeeklyReport、MeetingMinutes、WBSVersion
-- 6个新增枚举类型：DataSource、SyncMode、SyncFrequency、ImportMode等
+- 新增多源数据录入完整功能实现
+- 三大录入方式：飞书卡片（保留）、Excel模板导入、飞书在线表格同步
+- 七大功能模块全部支持三种录入方式
+- 新增代码21473行，新增文件37个，新增API接口30个
+
+核心新增功能:
+- ExcelService: Excel模板生成、数据导入导出
+- ValidationService: 统一数据校验层
+- SyncEngine: 数据同步引擎（冲突检测、版本管理）
+- LarkSheetSyncService: 飞书表格双向同步
+- NotificationService: 任务通知（分配、状态、延期预警）
+- WBSService: WBS版本管理、任务自动同步
+- WeeklyReportService: 周报自动生成、审批集成
+
+新增数据模型（8个）:
+- ExcelImportLog、DataSyncLog、LarkSheetBinding
+- DataVersion、DataConflict
+- WeeklyReport、MeetingMinutes、WBSVersion
+
+新增API端点:
+- /api/v1/excel/* (4个接口)
+- /api/v1/cost/* (5个接口)
+- /api/v1/risk/* (4个接口)
+- /api/v1/wbs/* (12个接口)
+- /api/v1/lark-sheet/* (5个接口)
 
 v1.1.0变更说明:
 - 删除了3个调用外部IT-Cost-System API的Skill（cost_estimation、cost_monitoring、cost_accounting）
