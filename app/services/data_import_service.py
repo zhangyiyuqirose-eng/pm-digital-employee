@@ -359,14 +359,15 @@ class DataImportService:
 
     def _entity_to_dict(self, entity: Any) -> Dict[str, Any]:
         """将实体转换为字典."""
-        if hasattr(entity, "to_dict"):
+        if hasattr(entity, "to_dict") and callable(entity.to_dict):
             return entity.to_dict()
 
         result = {}
-        for column in entity.__table__.columns:
-            value = getattr(entity, column.name)
-            if value is not None:
-                result[column.name] = value
+        if hasattr(entity, "__table__"):
+            for column in entity.__table__.columns:
+                value = getattr(entity, column.name, None)
+                if value is not None:
+                    result[column.name] = value
 
         return result
 

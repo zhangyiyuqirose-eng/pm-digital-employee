@@ -286,7 +286,8 @@ class DataExtractorService:
 
     def _build_weekly_report_prompt(self, content: ParsedContent) -> str:
         """构建周报提取Prompt."""
-        return f"""你是一个项目周报数据提取专家。
+        text_summary = content.get_text_summary(3000)
+        return """你是一个项目周报数据提取专家。
 
 ## 任务
 从周报文档中提取结构化数据。
@@ -304,7 +305,7 @@ class DataExtractorService:
 | risks_and_issues | string | 否 | 风险和问题 |
 
 ## 文档内容
-{content.get_text_summary(3000)}
+""" + text_summary + """
 
 ## 提取规则
 1. 周报日期通常为文档标题或日期标识
@@ -313,25 +314,14 @@ class DataExtractorService:
 4. 日期格式：YYYY-MM-DD
 
 ## 输出要求（JSON格式）
-```json
-{
-  "report_date": "2024-01-19",
-  "week_start": "2024-01-15",
-  "week_end": "2024-01-19",
-  "summary": "...",
-  "completed_tasks": [{"name": "...", "status": "completed"}],
-  "in_progress_tasks": [{"name": "...", "progress": 60}],
-  "next_week_plan": "...",
-  "risks_and_issues": "...",
-  "confidence": 0.90
-}
-```
+请输出包含report_date、week_start、week_end、summary等字段的标准JSON。
 
 请直接输出JSON。"""
 
     def _build_meeting_minutes_prompt(self, content: ParsedContent) -> str:
         """构建会议纪要提取Prompt."""
-        return f"""你是一个会议纪要数据提取专家。
+        text_summary = content.get_text_summary(3000)
+        return """你是一个会议纪要数据提取专家。
 
 ## 任务
 从会议纪要文档中提取结构化数据，并识别待办事项。
@@ -357,20 +347,10 @@ class DataExtractorService:
 | priority | string | 优先级 |
 
 ## 文档内容
-{content.get_text_summary(3000)}
+""" + text_summary + """
 
 ## 输出要求（JSON格式）
-```json
-{
-  "meeting_title": "...",
-  "meeting_date": "2024-01-18",
-  "meeting_time": "14:00-15:30",
-  "attendees": ["张三", "李四"],
-  "content": "...",
-  "action_items": [{"task_name": "...", "assignee_name": "...", "due_date": "...", "priority": "high"}],
-  "confidence": 0.88
-}
-```
+请输出包含meeting_title、meeting_date、attendees、action_items等字段的标准JSON。
 
 请直接输出JSON。"""
 
@@ -381,20 +361,22 @@ class DataExtractorService:
     ) -> str:
         """构建通用提取Prompt."""
         schema_desc = self._build_schema_description(entity_types)
+        text_summary = content.get_text_summary(3000)
+        entity_types_str = str(entity_types)
 
-        return f"""你是一个项目数据提取专家。
+        return """你是一个项目数据提取专家。
 
 ## 任务
 从文档内容中提取结构化数据。
 
 ## 目标实体类型
-{entity_types}
+""" + entity_types_str + """
 
 ## 实体字段定义
-{schema_desc}
+""" + schema_desc + """
 
 ## 文档内容
-{content.get_text_summary(3000)}
+""" + text_summary + """
 
 ## 提取规则
 1. 日期字段：转换为YYYY-MM-DD格式
@@ -403,17 +385,7 @@ class DataExtractorService:
 4. 人员字段：提取姓名
 
 ## 输出要求（JSON格式）
-```json
-{
-  "extracted_entities": [
-    {
-      "entity_type": "Task",
-      "data": {...},
-      "confidence": 0.85
-    }
-  ]
-}
-```
+请输出包含extracted_entities数组的标准JSON，每个元素包含entity_type、data和confidence字段。
 
 请直接输出JSON。"""
 
@@ -586,9 +558,9 @@ class DataExtractorService:
                 else:
                     date_str = f"{parts[2]}-{parts[0]}-{parts[1]}"
 
-            # 验证格式
-            datetime.strptime(date_str, "%Y-%m-%d")
-            return date_str
+            # 解析并重新格式化以确保补零
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+            return dt.strftime("%Y-%m-%d")
         except ValueError:
             return None
 
