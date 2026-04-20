@@ -96,6 +96,50 @@ alembic revision --autogenerate -m "description"
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## Project Structure
+
+```
+pm-digital-employee/
+├── app/                      # Application source code
+│   ├── api/                  # FastAPI endpoints
+│   ├── ai/                   # LLM gateway, prompts, safety
+│   ├── core/                 # Config, dependencies, exceptions
+│   ├── domain/               # Domain models (SQLAlchemy)
+│   ├── events/               # Event handlers
+│   ├── integrations/         # External integrations (Lark)
+│   ├── orchestrator/         # Core orchestration layer
+│   ├── rag/                  # RAG pipeline
+│   ├── repositories/         # Data repositories
+│   ├── services/             # Business services
+│   ├── skills/               # Skill plugins (12 skills)
+│   ├── tasks/                # Celery async tasks
+│   └── utils/                # Utilities
+├── tests/                    # Test suite (559 tests)
+│   ├── unit/                 # Unit tests
+│   ├── integration/          # Integration tests
+│   └ e2e/                    # End-to-end tests
+├── docs/                     # Documentation
+│   ├── api/                  # API reference
+│   ├── architecture/         # Architecture docs
+│   ├── deployment/           # Deployment guides
+│   ├── design/               # Design documents
+│   ├── development/          # Development guides
+│   ├── reports/              # Reports and analysis
+│   ├── requirements/         # Requirements specs
+│   └ testing/                # Test documentation
+├── scripts/                  # Utility scripts
+│   ├── db/                   # Database scripts
+│   └ dev/                    # Development scripts
+│   └ ops/                    # Operations scripts
+│   └ validation/             # Validation scripts
+├── prompts/                  # LLM prompt templates
+├── alembic/                  # Database migrations
+├── requirements.txt          # Python dependencies
+├── docker-compose.yml        # Docker configuration
+├── Makefile                  # Build commands
+└── VERSION.txt               # Version info
+```
+
 ## Key Directories
 
 - `app/api/` - FastAPI endpoints (Lark webhook/callback at `lark_webhook.py`, `lark_callback.py`)
@@ -107,6 +151,10 @@ alembic revision --autogenerate -m "description"
 - `app/rag/` - RAG pipeline: chunking, indexing, retrieval, reranking
 - `app/domain/models/` - SQLAlchemy domain models
 - `prompts/` - LLM prompt templates (v1.3.0 document parsing templates)
+- `tests/unit/` - Unit tests for individual components
+- `tests/integration/` - Integration tests for API and flows
+- `tests/e2e/` - End-to-end workflow tests
+- `docs/` - Organized documentation by category
 
 ## Core Flow: Orchestrator
 
@@ -223,7 +271,7 @@ Key configs in `.env`:
 - Celery + RabbitMQ for async tasks
 - PostgreSQL 15+ with pgvector extension
 - Redis 7+ for caching
-- pytest + pytest-asyncio for testing (549 tests, 80% coverage required)
+- pytest + pytest-asyncio for testing (559 tests, 80% coverage required)
 - ruff + black + mypy for code quality
 
 ## Naming Conventions
