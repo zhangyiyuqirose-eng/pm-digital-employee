@@ -14,62 +14,131 @@ Current version: v1.3.0 (see VERSION.txt and CHANGELOG.md for release history).
 ```bash
 # Install dependencies
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
-# Run development server
-python -m app.main
+# Run development server (hot reload)
+make dev
+# Or: uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# Or with uvicorn (hot reload)
-uvicorn app.main:app --reload --port 8000
+# Start Celery Worker
+make dev-celery
+
+# Start Celery Beat scheduler
+make dev-celery-beat
 ```
 
 ### Testing
 ```bash
-# Run all tests (549 tests, 100% pass rate required)
-pytest
+# Run all tests (559 tests)
+make test
+# Or: pytest tests/ -v
 
-# Run with coverage (80% minimum required)
-pytest --cov=app tests/
+# Run with coverage (80% minimum)
+make test-cov
+
+# Run unit tests only
+make test-unit
+
+# Run integration tests only
+make test-integration
+
+# Run E2E tests
+make test-e2e
 
 # Run specific test file
 pytest tests/unit/test_file_parser_service.py -v
 
-# Run specific test
+# Run specific test method
 pytest tests/unit/test_data_extractor_service.py::TestDataExtractorServiceHelpers::test_extract_dates_standard_format -v
 ```
 
 ### Code Quality
 ```bash
+# Run all quality checks (lint + format + type-check)
+make quality
+
 # Lint with ruff
-ruff check app/ --config .ruff.toml
+make lint
+
+# Auto-fix lint issues
+make lint-fix
 
 # Format with black
-black app/ --line-length 100
+make format
+
+# Check format without modifying
+make format-check
 
 # Type check with mypy
-mypy app/ --config-file mypy.ini
+make type-check
+
+# Security check with bandit
+make security
+
+# Run pre-commit on all files
+make pre-commit
+
+# Install pre-commit hooks
+make pre-commit-install
 ```
 
 ### Docker Deployment
 ```bash
-# Start full service stack
-docker-compose up -d
+# Build Docker images
+make docker-build
+
+# Start all Docker services
+make docker-up
 
 # View logs
-docker-compose logs -f app
+make docker-logs
+
+# Restart services
+make docker-restart
 
 # Stop services
-docker-compose down
+make docker-down
+
+# Clean up containers and volumes
+make docker-clean
 ```
 
 ### Database
 ```bash
-# Run migrations
-alembic upgrade head
+# Initialize database (create extensions + migrate)
+make db-init
 
-# Create new migration
-alembic revision --autogenerate -m "description"
+# Run migrations
+make db-migrate
+
+# Rollback one migration version
+make db-migrate-down
+
+# Create new migration (requires MSG variable)
+make db-migration-create MSG="add_new_table"
+
+# Seed demo data
+make db-seed
+
+# Reset database (WARNING: destructive)
+make db-reset
 
 # Current migration: 002_document_parse (v1.3.0)
+```
+
+### Operations
+```bash
+# Health check
+make health-check
+
+# Bootstrap system
+make bootstrap
+
+# Backup database
+make backup
+
+# Clean temp files
+make clean
 ```
 
 ## Architecture: 9-Layer Structure
@@ -195,6 +264,22 @@ Every Skill must:
 4. Define Manifest via `SkillManifestBuilder` (see `app/orchestrator/skill_manifest.py`)
 5. Register in `app/skills/__init__.py` via `register_all_skills()`
 
+**Skill registration flow:**
+```python
+# In app/skills/__init__.py
+from app.skills.document_parse_skill import DocumentParseSkill
+
+def register_all_skills(registry: SkillRegistry) -> None:
+    registry.register(DocumentParseSkill)
+    # ... other skills
+```
+
+**BaseSkill provides:**
+- `user_id`, `chat_id`, `project_id` - Context properties
+- `params` - Dict of parameters
+- `get_param(key, default)` - Get single parameter
+- `build_success_result()` / `build_error_result()` - Result builders
+
 ## Document Parsing Pipeline (v1.3.0)
 
 Fourth data entry channel for intelligent document parsing:
@@ -229,7 +314,17 @@ Fourth data entry channel for intelligent document parsing:
 - **Schemas**: `app/integrations/lark/schemas.py` - Message models, `LarkCardBuilder`
 - **Signature**: `app/integrations/lark/signature.py` - Callback signature verification
 
+**API Entry Points:**
+- `app/api/lark_webhook.py` - Receives messages from Lark (POST `/api/v1/lark/webhook`)
+- `app/api/lark_callback.py` - Handles interactive card callbacks
+
 Key message types: text, markdown, interactive_card, file, image (v1.3.0)
+
+**LarkCardBuilder** (`app/integrations/lark/schemas.py`) for constructing interactive cards:
+- `build_confirm_card()` - Confirmation dialogs
+- `build_success_card()` - Success notifications
+- `build_error_card()` - Error notifications
+- `build_param_collect_card()` - Parameter collection forms
 
 ## Dialog State Machine
 
@@ -262,8 +357,45 @@ Key configs in `.env`:
 - `LARK_VERIFICATION_TOKEN` - Callback verification
 - `DATABASE_URL` - PostgreSQL (asyncpg driver)
 - `REDIS_URL` - Redis connection
-- `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` - Celery config
+- `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` - Celery config (RabbitMQ)
 - `LLM_API_KEY`, `LLM_API_BASE`, `LLM_MODEL_NAME` - LLM config
+
+## Environment Requirements
+
+- Python 3.11+
+- PostgreSQL 15+ with pgvector extension
+- Redis 7+ for caching
+- RabbitMQ 3.12+ for Celery task queue
+
+## Pre-commit Hooks
+
+The project uses pre-commit hooks for automated code quality checks:
+- **ruff** - Fast Python linter with auto-fix
+- **black** - Code formatter (line-length 100)
+- **isort** - Import sorting (black profile)
+- **mypy** - Type checking
+- **bandit** - Security scanning
+- **prettier** - YAML/JSON/Markdown formatting
+
+Install hooks with: `make pre-commit-install` or `pre-commit install`
+
+Hooks run automatically on commit. Block commits to master/main branch.
+
+## Async Task Flow (Celery)
+
+Celery tasks for background processing:
+- `app/tasks/celery_app.py` - Celery app configuration
+- `app/tasks/report_tasks.py` - Report generation tasks
+- `app/tasks/tasks.py` - General async tasks
+
+Task configuration:
+- Task timeout: 1 hour (soft timeout: 55 min)
+- Results expire: 24 hours
+- Worker prefetch: 1 task
+- Max tasks per worker child: 100
+
+Start worker: `celery -A app.tasks.celery_app worker --loglevel=info`
+Start beat: `celery -A app.tasks.celery_app beat --loglevel=info`
 
 ## Tech Stack
 
