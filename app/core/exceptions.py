@@ -579,6 +579,51 @@ class CostNotFoundError(APIException):
         )
 
 
+class WeeklyReportNotFoundError(APIException):
+    """周报不存在异常."""
+
+    def __init__(self, message: str = "周报不存在", report_id: Optional[str] = None, trace_id: Optional[str] = None) -> None:
+        details = {}
+        if report_id:
+            details["report_id"] = report_id
+        super().__init__(
+            error_code=ErrorCode.DATA_NOT_FOUND,
+            message=message,
+            trace_id=trace_id,
+            details=details
+        )
+
+
+class MeetingMinutesNotFoundError(APIException):
+    """会议纪要不存在异常."""
+
+    def __init__(self, message: str = "会议纪要不存在", meeting_id: Optional[str] = None, trace_id: Optional[str] = None) -> None:
+        details = {}
+        if meeting_id:
+            details["meeting_id"] = meeting_id
+        super().__init__(
+            error_code=ErrorCode.DATA_NOT_FOUND,
+            message=message,
+            trace_id=trace_id,
+            details=details
+        )
+
+
+class WBSNotFoundError(APIException):
+    """WBS不存在异常."""
+
+    def __init__(self, message: str = "WBS不存在", wbs_id: Optional[str] = None, trace_id: Optional[str] = None) -> None:
+        details = {}
+        if wbs_id:
+            details["wbs_id"] = wbs_id
+        super().__init__(
+            error_code=ErrorCode.DATA_NOT_FOUND,
+            message=message,
+            trace_id=trace_id,
+            details=details
+        )
+
+
 # ==================== v1.3.0新增：服务层异常 ====================
 
 

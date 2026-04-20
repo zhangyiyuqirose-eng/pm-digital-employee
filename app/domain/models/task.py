@@ -273,10 +273,13 @@ class Task(Base, ProjectScopedMixin):
         back_populates="tasks",
     )
 
+    # 子任务关系 - 显式指定 foreign_keys 避免歧义
+    # 因为 predecessor_task_id 也指向 tasks.id，需要明确使用 parent_task_id
     sub_tasks: Mapped[List["Task"]] = relationship(
         "Task",
         backref="parent_task",
         remote_side=[id],
+        foreign_keys=[parent_task_id],
         lazy="selectin",
     )
 

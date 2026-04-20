@@ -36,6 +36,7 @@ from app.domain.models.group_project_binding import GroupProjectBinding
 from app.domain.models.milestone import Milestone
 from app.domain.models.project import Project
 from app.domain.models.risk import ProjectRisk
+from app.domain.models.skill_definition import SkillDefinition
 from app.domain.models.task import Task
 from app.domain.models.user import User
 from app.domain.models.user_project_role import UserProjectRole
@@ -107,6 +108,94 @@ DEMO_PROJECTS = [
         "end_date": date(2026, 8, 31),
         "total_budget": Decimal("3000000.00"),
         "department_name": "产品部",
+    },
+]
+
+# Skill定义数据（12个核心Skill）
+SKILL_DEFINITIONS = [
+    {
+        "skill_name": "project_overview",
+        "display_name": "项目总览查询",
+        "description": "查询项目的整体状态信息，包括进度、里程碑、风险、成本等",
+        "domain": "project_query",
+        "version": "1.0.0",
+    },
+    {
+        "skill_name": "weekly_report",
+        "display_name": "项目周报生成",
+        "description": "自动生成项目周报，汇总本周任务进展、下周计划、风险状态等",
+        "domain": "report",
+        "version": "1.0.0",
+    },
+    {
+        "skill_name": "wbs_generation",
+        "display_name": "WBS自动生成",
+        "description": "根据项目信息自动生成工作分解结构",
+        "domain": "planning",
+        "version": "1.0.0",
+    },
+    {
+        "skill_name": "task_update",
+        "display_name": "任务进度更新",
+        "description": "更新任务进度状态，包括完成百分比、状态变更、备注添加",
+        "domain": "task_management",
+        "version": "1.0.0",
+    },
+    {
+        "skill_name": "risk_alert",
+        "display_name": "风险识别与预警",
+        "description": "识别项目风险并发出预警，分析风险等级、影响范围、应对措施",
+        "domain": "risk_management",
+        "version": "1.0.0",
+    },
+    {
+        "skill_name": "cost_monitor",
+        "display_name": "成本监控",
+        "description": "监控项目成本执行情况，对比预算与实际支出，预警超支风险",
+        "domain": "cost_management",
+        "version": "1.0.0",
+    },
+    {
+        "skill_name": "policy_qa",
+        "display_name": "项目制度规范答疑",
+        "description": "回答项目管理规章制度相关问题，基于知识库检索并引用来源",
+        "domain": "knowledge",
+        "version": "1.0.0",
+    },
+    {
+        "skill_name": "project_query",
+        "display_name": "项目情况咨询",
+        "description": "回答项目具体情况相关问题",
+        "domain": "project_query",
+        "version": "1.0.0",
+    },
+    {
+        "skill_name": "meeting_minutes",
+        "display_name": "会议纪要生成",
+        "description": "根据会议内容生成结构化会议纪要",
+        "domain": "report",
+        "version": "1.0.0",
+    },
+    {
+        "skill_name": "compliance_review",
+        "display_name": "预立项/立项材料合规初审",
+        "description": "审核预立项/立项材料的合规性",
+        "domain": "compliance",
+        "version": "1.0.0",
+    },
+    {
+        "skill_name": "document_parse",
+        "display_name": "文档智能解析",
+        "description": "解析用户发送的项目文档，自动提取信息并入库",
+        "domain": "data_entry",
+        "version": "1.0.0",
+    },
+    {
+        "skill_name": "document_confirm",
+        "display_name": "文档确认处理",
+        "description": "确认文档解析结果并执行入库",
+        "domain": "data_entry",
+        "version": "1.0.0",
     },
 ]
 
@@ -352,6 +441,52 @@ async def seed_group_bindings(session, projects: list) -> None:
     logger.info("Created group bindings")
 
 
+async def seed_skill_definitions(session) -> list:
+    """创建Skill定义数据."""
+    logger.info("Seeding skill definitions...")
+    skill_defs = []
+
+    for skill_data in SKILL_DEFINITIONS:
+        # 检查是否已存在
+        from sqlalchemy import select
+        result = await session.execute(
+            select(SkillDefinition).where(SkillDefinition.skill_name == skill_data["skill_name"])
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            logger.info(f"Skill definition {skill_data['skill_name']} already exists, skipping")
+            skill_defs.append(existing)
+            continue
+
+        skill_def = SkillDefinition(
+            id=uuid.uuid4(),
+            skill_name=skill_data["skill_name"],
+            display_name=skill_data["display_name"],
+            description=skill_data["description"],
+            manifest=json.dumps({
+                "name": skill_data["skill_name"],
+                "display_name": skill_data["display_name"],
+                "description": skill_data["description"],
+                "version": skill_data["version"],
+                "domain": skill_data["domain"],
+            }),
+            version=skill_data["version"],
+            domain=skill_data["domain"],
+            is_enabled=True,
+            enabled_by_default=True,
+            supports_async=False,
+            supports_confirmation=False,
+            timeout_seconds=120,
+        )
+        session.add(skill_def)
+        skill_defs.append(skill_def)
+
+    await session.flush()
+    logger.info(f"Created {len(skill_defs)} skill definitions")
+    return skill_defs
+
+
 async def main() -> None:
     """主函数."""
     setup_logging()
@@ -369,6 +504,7 @@ async def main() -> None:
         await seed_costs(session, projects)
         await seed_risks(session, projects)
         await seed_group_bindings(session, projects)
+        await seed_skill_definitions(session)  # v1.3.0新增：Skill定义初始化
 
         await session.commit()
 
